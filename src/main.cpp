@@ -17,7 +17,7 @@
 #include <SPI.h>
 #include <Firebase_ESP_Client.h>
 
-std::map<String, std::function<void()>> commandMap;
+// std::map<String, std::function<void()>> commandMap;
 
 
 

@@ -6,8 +6,9 @@
 #include <LittleFS.h>
 #include <FirebaseJson.h>
 #include <map>
+#include <beagleCLI.h>
 
-extern std::map<String, std::function<void()>> commandMap;
+// std::map<String, std::function<void()>> commandMap;
 
 WiFiManager::WiFiManager() {}
 

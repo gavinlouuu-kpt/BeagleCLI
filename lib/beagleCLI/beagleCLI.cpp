@@ -1,4 +1,4 @@
-// #include "saveData.h"
+// beagleCLI.cpp
 #include <WiFi.h>
 #include <FirebaseJson.h>
 #include <LittleFS.h>
@@ -13,8 +13,43 @@
 #include <Init.h>
 #include <pinConfig.h>
 #include <Hardware.h>
+#include <functional>
 
-extern std::map<String, std::function<void()>> commandMap;
+std::map<String, std::function<void()>> commandMap;
+using CommandHandler = std::function<void(int)>;
+std::map<String, CommandHandler> commandHandlers;
+
+void registerCommand(const String& command, CommandHandler handler) {
+    commandHandlers[command] = handler;
+}
+
+String processCommand(const String& receivedCommand) {
+    // First, try to execute direct execution commands
+    auto cmdIt = commandMap.find(receivedCommand);
+    if (cmdIt != commandMap.end()) {
+        cmdIt->second();
+        Serial.println("\nCommand executed");
+        return "tc"; // task complete
+    }
+
+    // Process commands with parameters
+    int spaceIndex = receivedCommand.indexOf(' ');
+    String command = receivedCommand.substring(0, spaceIndex);
+    String paramString = receivedCommand.substring(spaceIndex + 1);
+
+    auto handlerIt = commandHandlers.find(command);
+    if (handlerIt != commandHandlers.end() && spaceIndex != -1) {
+        int param = paramString.toInt();
+        handlerIt->second(param);
+        Serial.println("\nCommand with parameter executed");
+        return "tc";
+    } else {
+        Serial.println("\nUnknown command");
+        return "uc"; // unknown command
+    }
+}
+
+
 
 void ESPinfo(){
     uint32_t flash_size = ESP.getFlashChipSize();
@@ -25,19 +60,19 @@ void ESPinfo(){
 
 
 
-String processCommand(const String& receivedCommand) {
-    auto it = commandMap.find(receivedCommand);
-    if (it != commandMap.end()) {
-        it->second(); // execute the command
-        Serial.println();
-        Serial.println("Command executed");
-        return "tc"; // task complete
-    } else {
-        Serial.println();
-        Serial.println("Unknown command");
-        return "uc"; // unknown command
-    }
-}
+// String processCommand(const String& receivedCommand) {
+//     auto it = commandMap.find(receivedCommand);
+//     if (it != commandMap.end()) {
+//         it->second(); // execute the command
+//         Serial.println();
+//         Serial.println("Command executed");
+//         return "tc"; // task complete
+//     } else {
+//         Serial.println();
+//         Serial.println("Unknown command");
+//         return "uc"; // unknown command
+//     }
+// }
 
 String readSerialInput() {
     String input = "";

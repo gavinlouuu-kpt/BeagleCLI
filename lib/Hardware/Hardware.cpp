@@ -1,10 +1,15 @@
+//Hardware.cpp
 #include <Arduino.h>
 #include <Hardware.h>
 #include <pinConfig.h>
 #include <Init.h>
 #include <map>
+#include <functional>
+#include <beagleCLI.h>
 
-extern std::map<String, std::function<void()>> commandMap;
+// std::map<String, std::function<void()>> commandMap;
+// using CommandHandler = std::function<void(int)>;
+// std::map<String, CommandHandler> commandHandlers;
 
 void pinSetup() {
     pinMode(BAT, INPUT); //read battery voltage
@@ -40,9 +45,16 @@ void solenoidOFF(){
     ledcWrite(SolenoidPWM, 0);
 }
 
+void setPumpSpeed(int speed){
+    ledcWrite(PumpPWM, 0);
+    configIntMod("/pump_speed", speed);
+    pumpSpeed = readConfigValue("/config.json","/pump_speed").toInt();
+}
+
 void hardwareCMD(){
     commandMap["pumpON"] = []() { pumpON(); };
     commandMap["pumpOFF"] = []() { pumpOFF(); };
     commandMap["solenoidON"] = []() { solenoidON(); };
     commandMap["solenoidOFF"] = []() { solenoidOFF(); };
+    commandHandlers["setPumpSpeed"] = [](int speed) { setPumpSpeed(speed); };
 }
