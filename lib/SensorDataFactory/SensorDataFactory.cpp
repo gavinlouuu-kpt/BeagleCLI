@@ -156,25 +156,29 @@ void SensorDataFactory::postSampling(){
 void SensorDataFactory::dataStream(){
     ledcWrite(PumpPWM, pumpSpeed); // turn on pump
     bme_begin();
+    while (1)
+    {
         bme.setGasHeater(200,5);
         if (bme.performReading()) {
         // Serial.println(bme.temperature);//Serial.print(",");
         // Serial.print(">Humidity:");Serial.println(bme.humidity);//Serial.print(",");
-        Serial.print(">200 Res:");Serial.println(bme.gas_resistance);
-    }
+            Serial.print(">200 Res:");Serial.println(bme.gas_resistance);
+        }
      
         bme.setGasHeater(300,5);
         if (bme.performReading()) {
         // Serial.println(bme.temperature);//Serial.print(",");
         // Serial.print(">Humidity:");Serial.println(bme.humidity);//Serial.print(",");
-        Serial.print(">300 Res:");Serial.println(bme.gas_resistance);
-    }
+            Serial.print(">300 Res:");Serial.println(bme.gas_resistance);
+        }
         bme.setGasHeater(400,5);
         if (bme.performReading()) {
         // Serial.println(bme.temperature);//Serial.print(",");
         // Serial.print(">Humidity:");Serial.println(bme.humidity);//Serial.print(",");
-        Serial.print(">400 Res:");Serial.println(bme.gas_resistance);
+            Serial.print(">400 Res:");Serial.println(bme.gas_resistance);
+        }
     }
+    
         
 }
 
