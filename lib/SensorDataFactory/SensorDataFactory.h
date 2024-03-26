@@ -10,7 +10,11 @@ extern volatile bool warmingInProgress;
 extern volatile bool samplingInProgress;
 extern volatile bool readyToSample;
 
-void testBreath();
+// void testBreath();
+
+void sensorCMD();
+
+
 
 class SensorDataFactory {
 public:
@@ -22,7 +26,7 @@ public:
 
 private:
     void performSampling(std::vector<float>& conVec, std::vector<uint32_t>& dataVec200, std::vector<uint32_t>& dataVec300, std::vector<uint32_t>& dataVec400);
-    static int dummyData();
+    // static int dummyData();
     void waitUser();
     #define SEALEVELPRESSURE_HPA (1013.25)
     bool bme_begin();

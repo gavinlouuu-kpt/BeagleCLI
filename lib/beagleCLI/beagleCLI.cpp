@@ -14,6 +14,7 @@
 #include <pinConfig.h>
 #include <Hardware.h>
 #include <functional>
+#include <SensorDataFactory.h>
 
 std::map<String, std::function<void()>> commandMap;
 using CommandHandler = std::function<void(int)>;
@@ -212,6 +213,7 @@ bool deleteAllFilesInDirectory(const char *dirPath) {
 void cmdSetup() {
     hardwareCMD();
     networkCMD();
+    sensorCMD();
     commandMap["deleteAll"] = []() { deleteAllFilesInLittleFS();};
     commandMap["ls"] = []() { listFilesInDirectory(); };
     commandMap["open"] = []() { printFileContent(); };

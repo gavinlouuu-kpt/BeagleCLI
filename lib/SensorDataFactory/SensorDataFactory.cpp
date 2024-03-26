@@ -5,12 +5,45 @@
 #include <vector>
 #include <thread>
 #include <pinConfig.h>
-
+#include <beagleCLI.h>
 #include <Init.h>
 #include <vector>
 #include <chrono>
 #include <algorithm> // For std::copy
 
+void datastreamTask(void * parameter){
+    SensorDataFactory sensorDataFactory;
+    while(true){
+        sensorDataFactory.dataStream();
+        // vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+
+TaskHandle_t datastreamTaskHandle = NULL;
+
+void datastreamTaskCreate() {
+    xTaskCreatePinnedToCore(
+        datastreamTask,     // Task function
+        "datastreamTask",   // Name of the task
+        10000,              // Stack depth in words
+        NULL,               // Task input parameters
+        1,                  // Priority
+        &datastreamTaskHandle, // Task handle
+        0                   // Core where the task should run
+    );
+}
+
+
+void killDatastreamTaskDirectly() {
+    if (datastreamTaskHandle != NULL) {
+        vTaskDelete(datastreamTaskHandle);
+        ledcWrite(PumpPWM, 0); // turn off pump
+        datastreamTaskHandle = NULL; // Invalidate the handle to prevent reuse
+        Serial.println("datastreamTask killed successfully.");
+    } else {
+        Serial.println("datastreamTask was not running.");
+    }
+}
 
 
 
@@ -234,4 +267,10 @@ SensorData SensorDataFactory::createSensorData() {
     waitUser();
     performSampling(conVec, dataVec200, dataVec300, dataVec400);
     return SensorData(infoString, conVec, dataVec200, dataVec300, dataVec400);
+}
+
+void sensorCMD(){
+    commandMap["datastream"] = []() { datastreamTaskCreate(); };
+    commandMap["killdatastream"] = []() { killDatastreamTaskDirectly(); };
+    
 }
