@@ -5,15 +5,15 @@
 #include <Init.h>
 #include <LittleFS.h>
 #include <FirebaseJson.h>
+#include <map>
 
+extern std::map<String, std::function<void()>> commandMap;
 
 WiFiManager::WiFiManager() {}
 
 void WiFiManager::ManageWIFI() {
     this->scanNetworks();
 
-    // Assuming scanNetworks tries to connect automatically and only proceeds
-    // if no stored networks were successfully connected.
     if (WiFi.status() != WL_CONNECTED) {
         String ssid = this->selectNetwork();
         if (ssid != "") {
@@ -123,32 +123,6 @@ String WiFiManager::inputPassword() {
     return password;
   }
 
-// void WiFiManager::connectToWiFi(const String& ssid, const String& password) {
-//     Serial.println("Connecting to WiFi...");
-//     WiFi.begin(ssid.c_str(), password.c_str());
-
-//     unsigned long startTime = millis(); // Get the current time
-//     const unsigned long timeout = 30000; // Set timeout duration (e.g., 30000 milliseconds or 30 seconds)
-
-//     while (WiFi.status() != WL_CONNECTED) {
-//         delay(500);
-//         Serial.print(".");
-
-//         if (millis() - startTime >= timeout) { // Check if the timeout has been reached
-//             Serial.println("\nConnection Timeout!");
-//             break; // Exit the loop if the timeout is reached
-//         }
-//     }
-
-//     if (WiFi.status() == WL_CONNECTED) {
-//         Serial.println("\nConnected!");
-//         Serial.print("IP Address: ");
-//         Serial.println(WiFi.localIP());
-//         configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); // Initialize NTP
-//     } else {
-//         Serial.println("\nFailed to connect. Please try again.");
-//     }
-//   }
 
 bool WiFiManager::connectToWiFi(const String& ssid, const String& password) {
     Serial.println("Connecting to WiFi...");
@@ -201,6 +175,10 @@ void networkState(){
     }
 }
 
-void GoogleDNS(){
-    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, IPAddress(8,8,8,8));
+
+void networkCMD(){
+    commandMap["net"] = []() { networkState(); };
+    commandMap["wifi"] = []() { WiFiManager wifiManager; wifiManager.ManageWIFI(); };
+
+    
 }

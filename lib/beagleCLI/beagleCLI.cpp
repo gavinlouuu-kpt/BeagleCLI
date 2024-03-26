@@ -12,6 +12,7 @@
 #include <Wire.h>
 #include <Init.h>
 #include <pinConfig.h>
+#include <Hardware.h>
 
 extern std::map<String, std::function<void()>> commandMap;
 
@@ -174,6 +175,8 @@ bool deleteAllFilesInDirectory(const char *dirPath) {
 }
 
 void cmdSetup() {
+    hardwareCMD();
+    networkCMD();
     commandMap["deleteAll"] = []() { deleteAllFilesInLittleFS();};
     commandMap["ls"] = []() { listFilesInDirectory(); };
     commandMap["open"] = []() { printFileContent(); };

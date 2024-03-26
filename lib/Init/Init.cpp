@@ -129,7 +129,7 @@ void configInit(){
   // USER_ID = readConfigValue("/config.json", "/USER_ID");
   // TARGET_GROUP = readConfigValue("/config.json", "/TARGET_GROUP");
   // FIREBASE_PATH = readConfigValue("/config.json", "/FIREBASE_PATH").toInt();
-  // pumpSpeed = readConfigValue("/config.json","/pump_speed").toInt();
+  pumpSpeed = readConfigValue("/config.json","/pump_speed").toInt();
   // FIREBASE_PROJECT_ID = readConfigValue("/config.json", "/FIREBASE_PROJECT_ID");
   // STORAGE_BUCKET_ID = readConfigValue("/config.json", "/STORAGE_BUCKET_ID");
   // USER_EMAIL = readConfigValue("/config.json", "/USER_EMAIL");
