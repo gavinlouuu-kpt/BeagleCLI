@@ -18,55 +18,6 @@
 #include <Firebase_ESP_Client.h>
 
 
-#include "CRC16.h"
-
-CRC16 crc(CRC16_MODBUS_POLYNOME,
-          CRC16_MODBUS_INITIAL,
-          CRC16_MODBUS_XOR_OUT,
-          CRC16_MODBUS_REV_IN,
-          CRC16_MODBUS_REV_OUT);
-
-
-
-void modbus_crc()
-{
-  uint8_t arr[8] = { 0x01, 0x06, 0x00, 0x34, 0x00, 0x01, 0x00, 0x00 }; // Increased size for CRC
-
-  // Add only the relevant data to CRC calculation
-  for (int i = 0; i < 6; i++) { 
-    crc.add(arr[i]);
-  }
-
-  uint16_t crcValue = crc.calc(); // Store the calculated CRC
-
-  // Append CRC in little-endian order
-  arr[6] = crcValue & 0xFF; // Lower byte
-  arr[7] = (crcValue >> 8) & 0xFF; // Higher byte
-
-  Serial.println(crcValue, HEX); // Print the CRC value
-
-  Serial2.write(arr, sizeof(arr)); // Send the array including the CRC
-}
-
-void modbus_off()
-{
-  uint8_t arr[8] = { 0x01, 0x06, 0x00, 0x34, 0x00, 0x00, 0x00, 0x00 }; // Increased size for CRC
-
-  // Add only the relevant data to CRC calculation
-  for (int i = 0; i < 6; i++) { 
-    crc.add(arr[i]);
-  }
-
-  uint16_t crcValue = crc.calc(); // Store the calculated CRC
-
-  // Append CRC in little-endian order
-  arr[6] = crcValue & 0xFF; // Lower byte
-  arr[7] = (crcValue >> 8) & 0xFF; // Higher byte
-
-  Serial.println(crcValue, HEX); // Print the CRC value
-
-  Serial2.write(arr, sizeof(arr)); // Send the array including the CRC
-}
 
 
 int U2_RX = 16;
@@ -100,8 +51,6 @@ void setup() {
   pwmSetup();
   configInit();
   cmdSetup();
-  // modbus_crc();
-  modbus_off();
 }
 
 void loop() {
