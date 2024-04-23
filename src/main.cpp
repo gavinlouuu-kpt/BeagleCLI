@@ -20,11 +20,13 @@
 // std::map<String, std::function<void()>> commandMap;
 
 
-
+int U2_RX = 16;
+int U2_TX = 17;
 
 void setup() {
 
   Serial.begin( 115200 ); /* prepare for possible serial debug */
+  Serial2.begin( 38400 );
     // Initialize LittleFS
   if (!LittleFS.begin()) {
     Serial.println("LittleFS mount failed, formatting...");

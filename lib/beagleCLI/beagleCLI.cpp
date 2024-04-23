@@ -15,6 +15,7 @@
 #include <Hardware.h>
 #include <functional>
 #include <SensorDataFactory.h>
+#include <zsrelay.h>
 
 std::map<String, std::function<void()>> commandMap;
 using CommandHandler = std::function<void(int)>;
@@ -214,6 +215,7 @@ void cmdSetup() {
     hardwareCMD();
     networkCMD();
     sensorCMD();
+    zsrelayCMD();
     commandMap["deleteAll"] = []() { deleteAllFilesInLittleFS();};
     commandMap["ls"] = []() { listFilesInDirectory(); };
     commandMap["open"] = []() { printFileContent(); };
