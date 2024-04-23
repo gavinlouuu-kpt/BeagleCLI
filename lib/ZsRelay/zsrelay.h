@@ -1,9 +1,10 @@
 #ifndef ZSRELAY_H
 #define ZSRELAY_H
 
+#include <vector>
 
-extern uint8_t all_on[];
-extern uint8_t all_off[];
+extern std::vector<uint8_t> all_on;
+extern std::vector<uint8_t> all_off;
 
 void relay_on();
 void relay_off();
