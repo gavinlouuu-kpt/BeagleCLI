@@ -1,0 +1,29 @@
+{
+    "setup_1": {
+        "duration(s)": 3,
+        "repeat": 5,
+        "channel": [
+            1,
+            2,
+            3
+        ]
+    },
+    "setup_2": {
+        "duration(s)": 2,
+        "repeat": 5,
+        "channel": [
+            1,
+            2,
+            3
+        ]
+    },
+    "setup_3": {
+        "duration(s)": 1,
+        "repeat": 5,
+        "channel": [
+            1,
+            2,
+            3
+        ]
+    }
+}

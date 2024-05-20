@@ -16,19 +16,23 @@
 #include <functional>
 #include <SensorDataFactory.h>
 #include <zsrelay.h>
+#include <exp_setup.h>
 
 std::map<String, std::function<void()>> commandMap;
 using CommandHandler = std::function<void(int)>;
 std::map<String, CommandHandler> commandHandlers;
 
-void registerCommand(const String& command, CommandHandler handler) {
+void registerCommand(const String &command, CommandHandler handler)
+{
     commandHandlers[command] = handler;
 }
 
-String processCommand(const String& receivedCommand) {
+String processCommand(const String &receivedCommand)
+{
     // First, try to execute direct execution commands
     auto cmdIt = commandMap.find(receivedCommand);
-    if (cmdIt != commandMap.end()) {
+    if (cmdIt != commandMap.end())
+    {
         cmdIt->second();
         Serial.println("\nCommand executed");
         return "tc"; // task complete
@@ -40,27 +44,27 @@ String processCommand(const String& receivedCommand) {
     String paramString = receivedCommand.substring(spaceIndex + 1);
 
     auto handlerIt = commandHandlers.find(command);
-    if (handlerIt != commandHandlers.end() && spaceIndex != -1) {
+    if (handlerIt != commandHandlers.end() && spaceIndex != -1)
+    {
         int param = paramString.toInt();
         handlerIt->second(param);
         Serial.println("\nCommand with parameter executed");
         return "tc";
-    } else {
+    }
+    else
+    {
         Serial.println("\nUnknown command");
         return "uc"; // unknown command
     }
 }
 
-
-
-void ESPinfo(){
+void ESPinfo()
+{
     uint32_t flash_size = ESP.getFlashChipSize();
     Serial.print("Flash size: ");
     Serial.print(flash_size);
     Serial.println(" bytes");
 }
-
-
 
 // String processCommand(const String& receivedCommand) {
 //     auto it = commandMap.find(receivedCommand);
@@ -76,14 +80,18 @@ void ESPinfo(){
 //     }
 // }
 
-String readSerialInput() {
+String readSerialInput()
+{
     String input = "";
-    while (!Serial.available()) {
+    while (!Serial.available())
+    {
         delay(10); // small delay to allow buffer to fill
     }
-    while (Serial.available()) {
+    while (Serial.available())
+    {
         char c = Serial.read();
-        if (c == '\n') {
+        if (c == '\n')
+        {
             break;
         }
         input += c;
@@ -92,41 +100,48 @@ String readSerialInput() {
     return input;
 }
 
-void printFileContent() {
+void printFileContent()
+{
     Serial.println("Enter the file name to open:");
     String fileName = readSerialInput();
     Serial.println("Opening file: " + fileName);
 
     File file = LittleFS.open("/" + fileName, "r");
-    if (!file) {
+    if (!file)
+    {
         Serial.println("Failed to open file for reading");
         return;
     }
 
     Serial.println("Contents of the file:");
-    while (file.available()) {
+    while (file.available())
+    {
         Serial.write(file.read());
     }
     file.close();
 }
 
-void printHexFileContent() {
+void printHexFileContent()
+{
     Serial.println("Enter the file name to open:");
     String fileName = readSerialInput(); // Make sure this function implements a way to read input from Serial.
     Serial.println("Opening file: " + fileName);
 
     File file = LittleFS.open("/" + fileName, "r");
-    if (!file) {
+    if (!file)
+    {
         Serial.println("Failed to open file for reading");
         return;
     }
 
     Serial.println("Contents of the file (hex):");
-    while (file.available()) {
+    while (file.available())
+    {
         char c = file.read();
         // Print each byte as a 2-digit hexadecimal number.
         Serial.print("0x");
-        if ((uint8_t)c < 0x10) Serial.print("0"); // Add leading zero for numbers less than 0x10
+        if ((uint8_t)c < 0x10)
+            Serial.print("0"); // Add leading zero for numbers less than 0x10
         Serial.print((uint8_t)c, HEX);
         Serial.print(" ");
     }
@@ -134,33 +149,41 @@ void printHexFileContent() {
     file.close();
 }
 
-void listFilesInDirectory(const String& directoryPath) {
+void listFilesInDirectory(const String &directoryPath)
+{
     File dir = LittleFS.open(directoryPath);
-    if (!dir) {
+    if (!dir)
+    {
         Serial.println("Failed to open directory");
         return;
     }
-    if (!dir.isDirectory()) {
+    if (!dir.isDirectory())
+    {
         Serial.println("Not a directory");
         return;
     }
 
     Serial.println("Listing directory: " + directoryPath);
     File file = dir.openNextFile();
-    while (file) {
+    while (file)
+    {
         String filePath = file.name();
-        
+
         // Ensure the file path starts with '/'
-        if (!filePath.startsWith("/")) {
+        if (!filePath.startsWith("/"))
+        {
             filePath = "/" + filePath;
         }
 
-        if (file.isDirectory()) {
+        if (file.isDirectory())
+        {
             Serial.print("DIR : ");
             Serial.println(filePath);
             // Recursively list nested directories
             listFilesInDirectory(filePath);
-        } else {
+        }
+        else
+        {
             Serial.print("FILE: ");
             Serial.println(filePath);
         }
@@ -168,39 +191,47 @@ void listFilesInDirectory(const String& directoryPath) {
     }
 }
 
-
-
-
-
-bool deleteAllFilesInLittleFS() {
+bool deleteAllFilesInLittleFS()
+{
     return deleteAllFilesInDirectory("/");
 }
 
-bool deleteAllFilesInDirectory(const char *dirPath) {
+bool deleteAllFilesInDirectory(const char *dirPath)
+{
     File dir = LittleFS.open(dirPath);
-    if (!dir || !dir.isDirectory()) {
+    if (!dir || !dir.isDirectory())
+    {
         Serial.println(String("Failed to open directory: ") + dirPath);
         return false;
     }
 
     File file = dir.openNextFile();
-    while (file) {
+    while (file)
+    {
         String filePath;
-        if (String(dirPath) == "/") {
+        if (String(dirPath) == "/")
+        {
             filePath = "/" + String(file.name());
-        } else {
+        }
+        else
+        {
             filePath = String(dirPath) + "/" + file.name();
         }
 
-        if (file.isDirectory()) {
-            if (!deleteAllFilesInDirectory(filePath.c_str())) {
+        if (file.isDirectory())
+        {
+            if (!deleteAllFilesInDirectory(filePath.c_str()))
+            {
                 Serial.println(String("Failed to delete directory: ") + filePath);
                 return false;
             }
             LittleFS.rmdir(filePath.c_str());
-        } else {
+        }
+        else
+        {
             file.close(); // Close the file if it's open
-            if (!LittleFS.remove(filePath.c_str())) {
+            if (!LittleFS.remove(filePath.c_str()))
+            {
                 Serial.println(String("Failed to remove file: ") + filePath);
                 return false;
             }
@@ -211,74 +242,92 @@ bool deleteAllFilesInDirectory(const char *dirPath) {
     return true;
 }
 
-void cmdSetup() {
+void cmdSetup()
+{
     hardwareCMD();
     networkCMD();
     sensorCMD();
     zsrelayCMD();
-    commandMap["deleteAll"] = []() { deleteAllFilesInLittleFS();};
-    commandMap["ls"] = []() { listFilesInDirectory(); };
-    commandMap["open"] = []() { printFileContent(); };
-    commandMap["info"] = []() { ESPinfo(); };
-    commandMap["net"] = []() { networkState(); };
-    commandMap["i2cScanner"] = []() { i2cScanner(); };
-    commandMap["help"] = [&]() {
-    Serial.println("Available commands:");
-    for (const auto& command : commandMap) {
-        Serial.println(command.first);
-    }
-};
+    readConfigCMD();
+    commandMap["deleteAll"] = []()
+    { deleteAllFilesInLittleFS(); };
+    commandMap["ls"] = []()
+    { listFilesInDirectory(); };
+    commandMap["open"] = []()
+    { printFileContent(); };
+    commandMap["info"] = []()
+    { ESPinfo(); };
+    commandMap["net"] = []()
+    { networkState(); };
+    commandMap["i2cScanner"] = []()
+    { i2cScanner(); };
+    commandMap["help"] = [&]()
+    {
+        Serial.println("Available commands:");
+        for (const auto &command : commandMap)
+        {
+            Serial.println(command.first);
+        }
+    };
 }
 
-void beagleCLI() {
-    if (Serial.available() > 0) {
+void beagleCLI()
+{
+    if (Serial.available() > 0)
+    {
         String receivedCommand = Serial.readStringUntil('\n');
         receivedCommand.trim();
         Serial.println("Received command: " + receivedCommand);
-        processCommand(receivedCommand);            
+        processCommand(receivedCommand);
     }
 }
 
+void i2cScanner()
+{
+    byte error, address;
+    int nDevices;
 
-void i2cScanner(){
-  byte error, address;
-  int nDevices;
+    Serial.println("Scanning...");
 
-  Serial.println("Scanning...");
+    nDevices = 0;
+    for (address = 1; address < 127; address++)
+    {
+        // The i2c_scanner uses the return value of
+        // the Write.endTransmission to see if
+        // a device did acknowledge to the address.
+        Wire.beginTransmission(address);
+        error = Wire.endTransmission();
 
-  nDevices = 0;
-  for (address = 1; address < 127; address++) {
-    // The i2c_scanner uses the return value of
-    // the Write.endTransmission to see if
-    // a device did acknowledge to the address.
-    Wire.beginTransmission(address);
-    error = Wire.endTransmission();
+        if (error == 0)
+        {
+            Serial.print("I2C device found at address 0x");
+            if (address < 16)
+            {
+                Serial.print("0");
+            }
+            Serial.print(address, HEX);
+            Serial.println("  !");
 
-    if (error == 0) {
-      Serial.print("I2C device found at address 0x");
-      if (address < 16) {
-        Serial.print("0");
-      }
-      Serial.print(address, HEX);
-      Serial.println("  !");
-
-      nDevices++;
+            nDevices++;
+        }
+        else if (error == 4)
+        {
+            Serial.print("Unknown error at address 0x");
+            if (address < 16)
+            {
+                Serial.print("0");
+            }
+            Serial.println(address, HEX);
+        }
     }
-    else if (error == 4) {
-      Serial.print("Unknown error at address 0x");
-      if (address < 16) {
-        Serial.print("0");
-      }
-      Serial.println(address, HEX);
+    if (nDevices == 0)
+    {
+        Serial.println("No I2C devices found\n");
     }
-  }
-  if (nDevices == 0) {
-    Serial.println("No I2C devices found\n");
-  }
-  else {
-    Serial.println("done\n");
-  }
+    else
+    {
+        Serial.println("done\n");
+    }
 
-  // Wait 5 seconds for the next scan
-  
+    // Wait 5 seconds for the next scan
 }
