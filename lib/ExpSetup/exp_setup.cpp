@@ -70,17 +70,28 @@ void getItem(FirebaseJson json, int setup_no)
 {
     FirebaseJsonData jsonData;
     String key = "setup_" + String(setup_no);
+    String dur_key = key + "/duration(s)";
+    String rep_key = key + "/repeat";
+    String ch_key = key + "/channel";
     if (json.get(jsonData, key))
     {
-        if (jsonData.typeNum == FirebaseJson::JSON_OBJECT || jsonData.typeNum == FirebaseJson::JSON_ARRAY)
-        {
-            Serial.println(jsonData.stringValue);
-        }
-        else
-        {
-            Serial.print("someKey: ");
-            Serial.println(jsonData.stringValue);
-        }
+        json.get(jsonData, dur_key);
+        Serial.println("Duration: " + String(jsonData.intValue));
+        json.get(jsonData, rep_key);
+        Serial.println("Repeat: " + String(jsonData.intValue));
+        json.get(jsonData, ch_key);
+        Serial.print("Channels: ");
+        Serial.println(jsonData.to<String>().c_str());
+
+        // if (jsonData.typeNum == FirebaseJson::JSON_OBJECT || jsonData.typeNum == FirebaseJson::JSON_ARRAY)
+        // {
+        //     Serial.println(jsonData.stringValue);
+        // }
+        // else
+        // {
+        //     Serial.print("someKey: ");
+        //     Serial.println(jsonData.stringValue);
+        // }
     }
     else
     {
@@ -143,7 +154,7 @@ void read_number_of_setups()
     // Output the number of setups found
     Serial.print("Number of setups: ");
     Serial.println(setupCount);
-    getChannel(json, 1);
+    getItem(json, 1);
 }
 
 // after parsing the json generate a sequence of number that can be fed into a function to run the experiment
