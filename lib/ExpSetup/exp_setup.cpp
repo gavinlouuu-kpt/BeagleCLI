@@ -80,8 +80,7 @@ void getItem(FirebaseJson json, int setup_no)
         json.get(jsonData, rep_key);
         Serial.println("Repeat: " + String(jsonData.intValue));
         json.get(jsonData, ch_key);
-        Serial.print("Channels: ");
-        Serial.println(jsonData.to<String>().c_str());
+        Serial.print("Channels: " + String(jsonData.to<String>().c_str()));
 
         // if (jsonData.typeNum == FirebaseJson::JSON_OBJECT || jsonData.typeNum == FirebaseJson::JSON_ARRAY)
         // {
