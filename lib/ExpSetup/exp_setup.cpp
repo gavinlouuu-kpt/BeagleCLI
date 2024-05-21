@@ -3,6 +3,10 @@
 #include <FirebaseJson.h>
 #include <LittleFS.h>
 #include <beagleCLI.h>
+#include <iostream>
+#include <vector>
+#include <sstream>
+#include <string>
 
 void read_config(String expSetup)
 {
@@ -56,20 +60,6 @@ void read_config(String expSetup)
         Serial.println("Failed to find key 'someKey' in JSON data");
     }
 }
-
-#include <FirebaseJson.h>
-#include <LittleFS.h>
-
-#include <FirebaseJson.h>
-#include <LittleFS.h>
-
-#include <FirebaseJson.h>
-#include <LittleFS.h>
-
-#include <iostream>
-#include <vector>
-#include <sstream>
-#include <string>
 
 std::vector<int> stringToArray(const std::string &str)
 {
