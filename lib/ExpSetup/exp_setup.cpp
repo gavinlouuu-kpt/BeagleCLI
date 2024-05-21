@@ -122,7 +122,7 @@ std::vector<int> getArr(FirebaseJson json, int setup_no, String target)
     return result;
 }
 
-void Setup_exe(FirebaseJson config, int setup_count)
+void setup_exe(FirebaseJson config, int setup_count)
 {
     for (int i = 1; i <= setup_count; i++)
     {
@@ -152,16 +152,12 @@ void Setup_exe(FirebaseJson config, int setup_count)
     }
 }
 
-void read_number_of_setups()
+String load_json(String filename)
 {
-    // File name for the JSON configuration
-    String filename = "/expSetup.json";
-
     // Initialize LittleFS
     if (!LittleFS.begin())
     {
         Serial.println("An error has occurred while mounting LittleFS");
-        return;
     }
 
     // Open the JSON configuration file
@@ -169,7 +165,6 @@ void read_number_of_setups()
     if (!configFile)
     {
         Serial.println("Failed to open config file for reading");
-        return;
     }
 
     // Read the entire file into a string
@@ -181,16 +176,14 @@ void read_number_of_setups()
     configFile.close();
 
     // Parse the JSON data
-    FirebaseJson json;
-    json.setJsonData(configData);
+    // FirebaseJson json;
+    // json.setJsonData(configData);
 
-    // // Debug print the raw JSON data
-    // String rawJson;
-    // json.toString(rawJson, true);
-    // Serial.println("Raw JSON:");
-    // Serial.println(rawJson);
+    return configData;
+}
 
-    // Count setups
+int count_setup(FirebaseJson json)
+{
     size_t setupCount = 0;
     FirebaseJsonData jsonData;
 
@@ -204,17 +197,20 @@ void read_number_of_setups()
         }
     }
 
-    // Output the number of setups found
-    // Serial.print("Number of setups: ");
-    // Serial.println(setupCount);
-    // Serial.println(getInt(json, 1, "/duration(s)"));
+    return setupCount;
+}
 
-    // std::vector<int> channels = getArr(json, 1, "/channel");
-    // for (int i : channels)
-    // {
-    //     Serial.println(i);
-    // }
-    Setup_exe(json, setupCount);
+void read_number_of_setups()
+{
+    // File name for the JSON configuration
+    String filename = "/expSetup.json";
+
+    String configData = load_json(filename);
+    FirebaseJson json;
+    json.setJsonData(configData);
+    int setupCount = count_setup(json);
+
+    setup_exe(json, setupCount);
 }
 
 void readConfigCMD()
