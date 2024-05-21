@@ -66,35 +66,89 @@ void read_config(String expSetup)
 #include <FirebaseJson.h>
 #include <LittleFS.h>
 
-void getItem(FirebaseJson json, int setup_no)
+#include <iostream>
+#include <vector>
+#include <sstream>
+#include <string>
+
+std::vector<int> stringToArray(const std::string &str)
 {
+    std::vector<int> result;
+    std::stringstream ss(str.substr(1, str.size() - 2)); // Remove the brackets
+    std::string item;
+
+    while (getline(ss, item, ','))
+    {
+        result.push_back(stoi(item));
+    }
+
+    return result;
+}
+
+int getInt(FirebaseJson json, int setup_no, String target)
+{
+    // get item within a setup
     FirebaseJsonData jsonData;
     String key = "setup_" + String(setup_no);
-    String dur_key = key + "/duration(s)";
-    String rep_key = key + "/repeat";
-    String ch_key = key + "/channel";
-    if (json.get(jsonData, key))
+    String full_key = key + target;
+    int result;
+    if (json.get(jsonData, full_key))
     {
-        json.get(jsonData, dur_key);
-        Serial.println("Duration: " + String(jsonData.intValue));
-        json.get(jsonData, rep_key);
-        Serial.println("Repeat: " + String(jsonData.intValue));
-        json.get(jsonData, ch_key);
-        Serial.print("Channels: " + String(jsonData.to<String>().c_str()));
-
-        // if (jsonData.typeNum == FirebaseJson::JSON_OBJECT || jsonData.typeNum == FirebaseJson::JSON_ARRAY)
-        // {
-        //     Serial.println(jsonData.stringValue);
-        // }
-        // else
-        // {
-        //     Serial.print("someKey: ");
-        //     Serial.println(jsonData.stringValue);
-        // }
+        json.get(jsonData, full_key);
+        result = String(jsonData.intValue).toInt();
     }
     else
     {
-        Serial.println("Failed to find key 'someKey' in JSON data");
+        Serial.println("Failed to find key: " + target);
+    }
+    return result;
+}
+
+std::vector<int> getArr(FirebaseJson json, int setup_no, String target)
+{
+    FirebaseJsonData jsonData;
+    String key = "setup_" + String(setup_no);
+    String full_key = key + target;
+    std::vector<int> result;
+    if (json.get(jsonData, full_key))
+    {
+        json.get(jsonData, full_key);
+        result = stringToArray(jsonData.stringValue.c_str());
+    }
+    else
+    {
+        Serial.println("Failed to find key: " + target);
+    }
+    return result;
+}
+
+void Setup_exe(FirebaseJson config, int setup_count)
+{
+    for (int i = 1; i <= setup_count; i++)
+    {
+        int duration = getInt(config, i, "/duration(s)");
+        int repeat = getInt(config, i, "/repeat");
+        std::vector<int> channels = getArr(config, i, "/channel");
+        // only continue with the experiment if all three parameters are not 0
+        if (duration == 0 || repeat == 0 || channels.size() == 0)
+        {
+            // if invalid setup found exit the function
+            Serial.println("Invalid setup: " + String(i));
+            continue;
+        }
+
+        // for each channel in the array, run the experiment
+        Serial.println("Running experiment for setup: " + String(i));
+        for (int j = 0; j < repeat; j++)
+        {
+            Serial.println("Running experiment for setup: " + String(i) + " repeat: " + String(j));
+            for (int channel : channels)
+            {
+                Serial.println("Running experiment for channel: " + String(channel));
+                // run the experiment
+                // run_experiment(channel, duration);
+            }
+        }
     }
 }
 
@@ -130,11 +184,11 @@ void read_number_of_setups()
     FirebaseJson json;
     json.setJsonData(configData);
 
-    // Debug print the raw JSON data
-    String rawJson;
-    json.toString(rawJson, true);
-    Serial.println("Raw JSON:");
-    Serial.println(rawJson);
+    // // Debug print the raw JSON data
+    // String rawJson;
+    // json.toString(rawJson, true);
+    // Serial.println("Raw JSON:");
+    // Serial.println(rawJson);
 
     // Count setups
     size_t setupCount = 0;
@@ -151,13 +205,17 @@ void read_number_of_setups()
     }
 
     // Output the number of setups found
-    Serial.print("Number of setups: ");
-    Serial.println(setupCount);
-    getItem(json, 1);
-}
+    // Serial.print("Number of setups: ");
+    // Serial.println(setupCount);
+    // Serial.println(getInt(json, 1, "/duration(s)"));
 
-// after parsing the json generate a sequence of number that can be fed into a function to run the experiment
-// [[1,3,5,[1,2,3]],[2,2,5,[1,2,3]],[3,1,5,[1,2,3]]] setup_no, duration, repeat, [channels]
+    // std::vector<int> channels = getArr(json, 1, "/channel");
+    // for (int i : channels)
+    // {
+    //     Serial.println(i);
+    // }
+    Setup_exe(json, setupCount);
+}
 
 void readConfigCMD()
 {
