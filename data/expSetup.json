@@ -12,18 +12,18 @@
         "duration(s)": 2,
         "repeat": 5,
         "channel": [
-            1,
+            5,
             2,
-            3
+            1
         ]
     },
     "setup_3": {
         "duration(s)": 1,
         "repeat": 5,
         "channel": [
-            1,
-            2,
-            3
+            10,
+            15,
+            0
         ]
     }
 }

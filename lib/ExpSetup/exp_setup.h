@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-void read_config(String expSetup);
+// void read_config(String expSetup);
 // void Setup_exe(FirebaseJson config, int setup_count);
 void readConfigCMD();
 
