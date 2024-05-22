@@ -67,9 +67,7 @@ void test_calc()
 std::vector<uint8_t> switchCommand(int devicePosition, int relayAddress, int relayState)
 {
     std::vector<uint8_t> command;
-    // initialize command and clear
-    command.clear();
-    // Convert integers to bytes and construct the command
+    crc.restart();                                                // Reset the CRC calculation
     command.push_back(static_cast<uint8_t>(devicePosition));      // Device position (1 byte)
     command.push_back(0x06);                                      // Function code byte
     command.push_back(static_cast<uint8_t>(relayAddress >> 8));   // Relay address high byte

@@ -141,24 +141,18 @@ void setup_exe(FirebaseJson config, int setup_count, int exp_time = 10000)
                 Serial.println("");
 
                 Serial.println("Turning on channel: " + String(channel));
-                Serial2.flush();
-                delay(10);
                 Serial2.write(on_command.data(), on_command.size());
                 delay(duration);
                 // flush serial
 
                 std::vector<uint8_t> off_command = switchCommand(1, channel, 0);
-
                 Serial.println("Off command: ");
                 for (uint8_t i : off_command)
                 {
                     Serial.print(i);
                 }
-                Serial.println("");
 
                 Serial.println("Turning off channel: " + String(channel));
-                Serial2.flush();
-                delay(10);
                 Serial2.write(off_command.data(), off_command.size());
                 delay(exp_time);
 
