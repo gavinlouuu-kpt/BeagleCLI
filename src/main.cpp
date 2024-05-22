@@ -123,7 +123,8 @@ void setup()
   const char *filename = "/expSetup.json";
   // load_sd_json(filename, configData);
   // delay(10000);
-  M5_SD_CMD(filename);
+  M5_SD_CMD(filename, configData);
+  Serial.println(configData);
 }
 
 void loop()
