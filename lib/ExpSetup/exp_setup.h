@@ -3,9 +3,8 @@
 
 #include <Arduino.h>
 
-// void read_config(String expSetup);
-// void Setup_exe(FirebaseJson config, int setup_count);
 void readConfigCMD();
-void M5_SD_CMD();
+void load_sd_json(const char *filename, String configData);
+void M5_SD_CMD(const char *filename);
 
 #endif // EXP_SETUP_H
