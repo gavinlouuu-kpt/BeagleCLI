@@ -53,5 +53,6 @@
         "thread": "cpp",
         "cinttypes": "cpp",
         "typeinfo": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "D:/code/BeagleCLI/lib/Adafruit BusIO"
 }

@@ -3,27 +3,14 @@
         "duration(s)": 3,
         "repeat": 5,
         "channel": [
+            0,
             1,
             2,
-            3
-        ]
-    },
-    "setup_2": {
-        "duration(s)": 2,
-        "repeat": 5,
-        "channel": [
+            3,
+            4,
             5,
-            2,
-            1
-        ]
-    },
-    "setup_3": {
-        "duration(s)": 1,
-        "repeat": 5,
-        "channel": [
-            10,
-            15,
-            0
+            6,
+            7
         ]
     }
 }

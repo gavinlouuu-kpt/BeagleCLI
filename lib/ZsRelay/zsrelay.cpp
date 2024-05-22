@@ -94,7 +94,7 @@ void cmd_off()
 {
     Serial2.flush();
     delay(100);
-    std::vector<uint8_t> command = switchCommand(1, 1, 0);
+    std::vector<uint8_t> command = switchCommand(1, 47, 0);
     for (uint8_t i : command)
     {
         Serial.print(i);
@@ -106,7 +106,7 @@ void cmd_on()
 {
     Serial2.flush();
     delay(100);
-    std::vector<uint8_t> command = switchCommand(1, 1, 1);
+    std::vector<uint8_t> command = switchCommand(1, 47, 1);
     for (uint8_t i : command)
     {
         Serial.print(i);

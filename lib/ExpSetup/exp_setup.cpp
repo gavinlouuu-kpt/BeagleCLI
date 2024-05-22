@@ -7,6 +7,8 @@
 #include <vector>
 #include <sstream>
 #include <string>
+#include <M5Stack.h>
+#include <Arduino.h>
 
 std::vector<int> stringToArray(const std::string &str)
 {
@@ -59,6 +61,34 @@ std::vector<int> getArr(FirebaseJson json, int setup_no, String target)
     return result;
 }
 
+void load_sd_json(String filename, String configData)
+{
+    Serial.println("Initializing SD card");
+    if (!SD.begin())
+    { // Initialize the SD card. 初始化SD卡
+        M5.Lcd.println("Card failed, or not present");
+        Serial.println("Card failed, or not present");
+    }
+    Serial.println("Open filename in read mode");
+    File configFile = SD.open(filename, FILE_READ); // Open the file "/hello.txt" in read mode.
+    if (configFile)
+    {
+        // String configData;
+        Serial.println("Loading file for string");
+        while (configFile.available())
+        {
+            configData += char(configFile.read());
+        }
+        configFile.close();
+        // return configData;
+    }
+    else
+    {
+        M5.Lcd.println("Failed to open config file for reading");
+        Serial.println("Failed to open config file for reading");
+    }
+}
+
 String load_json(String filename)
 {
     // Initialize LittleFS
@@ -109,6 +139,14 @@ int count_setup(FirebaseJson json)
 
 void setup_exe(FirebaseJson config, int setup_count, int exp_time = 10000)
 {
+    std::vector<uint8_t> pump_on = switchCommand(1, 47, 1);
+    Serial2.write(pump_on.data(), pump_on.size());
+    Serial.println("Pump command: ");
+    for (uint8_t i : pump_on)
+    {
+        Serial.print(i);
+    }
+
     for (int i = 1; i <= setup_count; i++)
     {
         int duration = getInt(config, i, "/duration(s)");
@@ -161,14 +199,22 @@ void setup_exe(FirebaseJson config, int setup_count, int exp_time = 10000)
             }
         }
     }
+
+    std::vector<uint8_t> pump_off = switchCommand(1, 47, 0);
+    Serial2.write(pump_off.data(), pump_off.size());
+    Serial.println("Pump off command: ");
+    for (uint8_t i : pump_off)
+    {
+        Serial.print(i);
+    }
 }
 
 void read_number_of_setups()
 {
     // File name for the JSON configuration
     String filename = "/expSetup.json";
-
-    String configData = load_json(filename);
+    String configData;
+    load_sd_json(filename, configData);
     FirebaseJson json;
     json.setJsonData(configData);
     int setupCount = count_setup(json);
@@ -176,8 +222,68 @@ void read_number_of_setups()
     setup_exe(json, setupCount);
 }
 
+void M5_SD_CMD()
+{
+    if (!SD.begin())
+    { // Initialize the SD card. 初始化SD卡
+        M5.Lcd.println(
+            "Card failed, or not present");
+        while (1)
+            ;
+    }
+    M5.Lcd.println("TF card initialized.");
+    if (SD.exists("/hello.txt"))
+    { // Check if the "/hello.txt" file
+        // exists.查看是否存在"/hello.txt"文件
+        M5.Lcd.println("hello.txt exists.");
+    }
+    else
+    {
+        M5.Lcd.println("hello.txt doesn't exist.");
+    }
+    M5.Lcd.println("Creating hello.txt");
+    File myFile = SD.open("/hello.txt",
+                          FILE_WRITE); // Create a new file "/hello.txt".
+                                       // 创建一个新文件"/hello.txt"
+    if (myFile)
+    { // If the file is open, then write to it.
+        // 如果文件打开,则进行写入操作
+        M5.Lcd.println("Writing to test.txt...");
+        myFile.println("SD test.");
+        myFile.close(); // Close the file. 关闭文件
+        M5.Lcd.println("done.");
+    }
+    else
+    {
+        M5.Lcd.println("error opening test.txt");
+    }
+    delay(500);
+    myFile = SD.open("/expSetup.json",
+                     FILE_READ); // Open the file "/hello.txt" in read mode.
+                                 // 以读取模式打开文件"/hello.txt"
+    if (myFile)
+    {
+        M5.Lcd.println("with cmd /expSetup.json Content:");
+        // Read the data from the file and print it until the reading is
+        // complete. 从文件里读取数据并打印到串口,直到读取完成.
+        while (myFile.available())
+        {
+            M5.Lcd.write(myFile.read());
+            // Serial.println(myFile.read());
+        }
+        myFile.close();
+    }
+    else
+    {
+        M5.Lcd.println("error opening /hello.txt"); // If the file is not open.
+                                                    // 如果文件没有打开
+    }
+}
+
 void readConfigCMD()
 {
     commandMap["readConfig"] = []()
     { read_number_of_setups(); };
+    commandMap["sdTest"] = []()
+    { M5_SD_CMD(); };
 }
