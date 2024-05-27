@@ -119,12 +119,16 @@ void setup()
   // pwmSetup();
   // configInit();
   // cmdSetup();
-  String configData;
-  const char *filename = "/expSetup.json";
+
+  // String configData;
+  // const char *filename = "/expSetup.json";
+
   // load_sd_json(filename, configData);
   // delay(10000);
-  M5_SD_CMD(filename, configData);
-  Serial.println(configData);
+
+  // M5_SD_CMD(filename, configData);
+  // Serial.println(configData);
+  read_number_of_setups();
 }
 
 void loop()

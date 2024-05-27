@@ -61,66 +61,6 @@ std::vector<int> getArr(FirebaseJson json, int setup_no, String target)
     return result;
 }
 
-void load_sd_json(const char *filename, String &configData)
-{
-    Serial.println("Initializing SD card");
-    if (!SD.begin())
-    { // Initialize the SD card. 初始化SD卡
-        M5.Lcd.println("Card failed, or not present");
-        Serial.println("Card failed, or not present");
-    }
-    Serial.println("Open filename in read mode");
-    File configFile = SD.open(filename, FILE_READ); // Open the file "/hello.txt" in read mode.
-    if (configFile)
-    {
-        // String configData;
-
-        M5.lcd.write(configFile.read());
-        // Serial.println("Loading file for string");
-        // while (configFile.available())
-        // {
-        //     configData += char(configFile.read());
-        // }
-        configFile.close();
-        // return configData;
-    }
-    else
-    {
-        M5.Lcd.println("Failed to open config file for reading");
-        Serial.println("Failed to open config file for reading");
-    }
-}
-
-// String load_json(String filename)
-// {
-//     // Initialize LittleFS
-//     if (!LittleFS.begin())
-//     {
-//         Serial.println("An error has occurred while mounting LittleFS");
-//     }
-
-//     // Open the JSON configuration file
-//     File configFile = LittleFS.open(filename, "r");
-//     if (!configFile)
-//     {
-//         Serial.println("Failed to open config file for reading");
-//     }
-
-//     // Read the entire file into a string
-//     String configData;
-//     while (configFile.available())
-//     {
-//         configData += char(configFile.read());
-//     }
-//     configFile.close();
-
-//     // Parse the JSON data
-//     // FirebaseJson json;
-//     // json.setJsonData(configData);
-
-//     return configData;
-// }
-
 int count_setup(FirebaseJson json)
 {
     size_t setupCount = 0;
@@ -216,15 +156,17 @@ void read_number_of_setups()
     // File name for the JSON configuration
     const char *filename = "/expSetup.json";
     String configData;
-    load_sd_json(filename, configData);
+    // load_sd_json(filename, configData);
+    M5_SD_JSON(filename, configData);
     FirebaseJson json;
     json.setJsonData(configData);
     int setupCount = count_setup(json);
+    // Serial.println(setupCount);
 
     setup_exe(json, setupCount);
 }
 
-void M5_SD_CMD(const char *filename, String &configData)
+void M5_SD_JSON(const char *filename, String &configData)
 {
     if (!SD.begin())
     { // Initialize the SD card. 初始化SD卡
@@ -240,12 +182,6 @@ void M5_SD_CMD(const char *filename, String &configData)
     if (myFile)
     {
         M5.Lcd.println("with cmd /expSetup.json Content:");
-        // Read the data from the file and print it until the reading is
-        // complete. 从文件里读取数据并打印到串口,直到读取完成.
-        // while (myFile.available())
-        // {
-        //     M5.Lcd.write(myFile.read());
-        // }
         while (myFile.available())
         {
             configData += char(myFile.read());
@@ -262,8 +198,8 @@ void M5_SD_CMD(const char *filename, String &configData)
 
 void readConfigCMD()
 {
-    // commandMap["readConfig"] = []()
-    // { read_number_of_setups(); };
+    commandMap["readConfig"] = []()
+    { read_number_of_setups(); };
     // commandMap["sdTest"] = []()
     // { M5_SD_CMD(); };
 }
