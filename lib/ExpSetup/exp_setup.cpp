@@ -1,3 +1,4 @@
+#include <chrono>
 #include <exp_setup.h>
 #include <zsrelay.h>
 #include <FirebaseJson.h>
@@ -13,7 +14,6 @@
 #include <Adafruit_BME680.h>
 
 #include <unordered_map>
-#include <chrono>
 
 Adafruit_BME680 bme; // I2C
 
@@ -234,44 +234,62 @@ void M5_SD_JSON(const char *filename, String &configData)
     }
 }
 
-// int UOM_sensor()
-// {
-//     int heatingTime = 8;
-//     std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData;
-//     std::vector<int> heaterSettings = {150, 200, 250, 300, 350, 400, 450, 500};
+int UOM_sensor()
+{
+    if (!bme.begin())
+    {
+        Serial.println("Could not find a valid BME680 sensor, check wiring!");
+        while (1)
+            ;
+    }
+    int heatingTime = 8;
+    std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData;
+    std::vector<int> heaterSettings = {150, 200, 250, 300, 350, 400, 450, 500};
 
-//     // auto end = std::chrono::steady_clock::now() + std::chrono::seconds(30); // Assuming you want to run this for 60 seconds
-//     auto start = std::chrono::steady_clock::now();
-//     auto end = start + std::chrono::seconds(30);
+    // auto end = std::chrono::steady_clock::now() + std::chrono::seconds(30); // Assuming you want to run this for 60 seconds
+    auto start = std::chrono::steady_clock::now();
+    auto end = start + std::chrono::seconds(30);
+    Serial.println("Starting the loop");
+    while (std::chrono::steady_clock::now() < end)
+    {
+        Serial.println("In the loop");
+        for (int setting : heaterSettings)
+        {
+            Serial.print("Setting the gas heater to ");
+            Serial.println(setting);
+            bme.setGasHeater(setting, heatingTime);
+            if (bme.performReading())
+            {
+                UOM_sensorData[setting].push_back(bme.gas_resistance);
+                Serial.print("Gas Resistance: ");
+                Serial.println(bme.gas_resistance);
+            }
+            else
+            {
+                Serial.println("Failed to perform reading.");
+            }
+        }
+    }
 
-//     while (std::chrono::steady_clock::now() < end)
-//     {
-//         for (int setting : heaterSettings)
-//         {
-//             bme.setGasHeater(setting, heatingTime);
-//             if (bme.performReading())
-//             {
-//                 UOM_sensorData[setting].push_back(bme.gas_resistance);
-//                 Serial.println("Data for setting " + String(setting) + ": " + String(bme.gas_resistance));
-//             }
-//         }
-//     }
+    // Optional: process or display the collected data
+    for (auto iter = UOM_sensorData.begin(); iter != UOM_sensorData.end(); ++iter)
+    {
+        int setting = iter->first;                           // Extract the setting
+        const std::vector<uint32_t> &dataVec = iter->second; // Extract the vector of data
 
-//     // // Optional: process or display the collected data
-//     // for (auto &[setting, dataVec] : UOM_sensorData)
-//     // {
-//     //     // std::cout << "Data for setting " << setting << ": ";
-//     //     Serial.println("Data for setting " + String(setting) + ": ");
-//     //     for (auto value : dataVec)
-//     //     {
-//     //         // std::cout << value << " ";
-//     //         Serial.println(value);
-//     //     }
-//     //     std::cout << std::endl;
-//     // }
+        Serial.print("Data for setting ");
+        Serial.print(setting);
+        Serial.println(": ");
 
-//     return 0;
-// }
+        for (auto value : dataVec)
+        {
+            Serial.println(value);
+        }
+        Serial.println(); // Adds a new line after the list of data for readability
+    }
+
+    return 0;
+}
 
 void bme_setup()
 {
@@ -319,6 +337,6 @@ void readConfigCMD()
     { expTask(); };
     commandMap["sdTest"] = []()
     { exp_build(); };
-    // commandMap["UOM_sensor"] = []()
-    // { UOM_sensor(); };
+    commandMap["UOM_sensor"] = []()
+    { UOM_sensor(); };
 }
