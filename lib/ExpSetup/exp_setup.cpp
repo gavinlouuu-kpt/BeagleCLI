@@ -1,7 +1,6 @@
 #include <exp_setup.h>
 #include <zsrelay.h>
 #include <FirebaseJson.h>
-// #include <LittleFS.h>
 #include <beagleCLI.h>
 #include <iostream>
 #include <vector>
@@ -9,6 +8,25 @@
 #include <string>
 #include <M5Stack.h>
 #include <Arduino.h>
+
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME680.h>
+
+#include <unordered_map>
+#include <chrono>
+
+Adafruit_BME680 bme; // I2C
+
+enum ExpState
+{
+    EXP_IDLE,
+    EXP_WARMING_UP,
+    EXP_READY,
+    EXP_DAQ,
+    EXP_SAVE
+};
+
+ExpState expState = EXP_IDLE;
 
 std::vector<int> stringToArray(const std::string &str)
 {
@@ -79,8 +97,9 @@ int count_setup(FirebaseJson json)
     return setupCount;
 }
 
-void setup_exe(FirebaseJson config, int setup_count, int exp_time = 10000)
+void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
 {
+    expState = EXP_WARMING_UP;
     std::vector<uint8_t> pump_on = switchCommand(1, 47, 1);
     Serial2.write(pump_on.data(), pump_on.size());
     Serial.println("Pump command: ");
@@ -102,6 +121,7 @@ void setup_exe(FirebaseJson config, int setup_count, int exp_time = 10000)
             Serial.println("Invalid setup: " + String(i));
             continue;
         }
+        expState = EXP_READY;
 
         // for each channel in the array, run the experiment
         Serial.println("Running experiment for setup: " + String(i));
@@ -110,6 +130,9 @@ void setup_exe(FirebaseJson config, int setup_count, int exp_time = 10000)
             Serial.println("Running experiment for setup: " + String(i) + " repeat: " + String(j));
             for (int channel : channels)
             {
+                expState = EXP_DAQ;
+                // RTOS logic that is driven by events
+                // use rtos to collect data and flag to signal start and stop for data saving
                 Serial.println("Running experiment for channel: " + String(channel));
                 std::vector<uint8_t> on_command = switchCommand(1, channel, 1);
 
@@ -131,13 +154,12 @@ void setup_exe(FirebaseJson config, int setup_count, int exp_time = 10000)
                 {
                     Serial.print(i);
                 }
-
+                Serial.println("");
                 Serial.println("Turning off channel: " + String(channel));
                 Serial2.write(off_command.data(), off_command.size());
                 delay(exp_time);
-
-                // run the experiment
-                // run_experiment(channel, duration);
+                expState = EXP_SAVE;
+                // wait for data to be saved and expState to be set to EXP_READY
             }
         }
     }
@@ -149,21 +171,36 @@ void setup_exe(FirebaseJson config, int setup_count, int exp_time = 10000)
     {
         Serial.print(i);
     }
+    expState = EXP_IDLE;
 }
 
-void read_number_of_setups()
+void exp_build()
 {
     // File name for the JSON configuration
     const char *filename = "/expSetup.json";
     String configData;
-    // load_sd_json(filename, configData);
     M5_SD_JSON(filename, configData);
     FirebaseJson json;
     json.setJsonData(configData);
     int setupCount = count_setup(json);
-    // Serial.println(setupCount);
+    exp_loop(json, setupCount);
+}
 
-    setup_exe(json, setupCount);
+void exp_start(void *pvParameters)
+{
+    exp_build();
+    vTaskDelete(NULL);
+}
+
+void expTask()
+{
+    xTaskCreate(
+        exp_start,   /* Task function. */
+        "exp_start", /* String with name of task. */
+        10000,       /* Stack size in bytes. */
+        NULL,        /* Parameter passed as input of the task */
+        1,           /* Priority of the task. */
+        NULL);       /* Task handle. */
 }
 
 void M5_SD_JSON(const char *filename, String &configData)
@@ -184,6 +221,7 @@ void M5_SD_JSON(const char *filename, String &configData)
         M5.Lcd.println("with cmd /expSetup.json Content:");
         while (myFile.available())
         {
+            M5.Lcd.write(myFile.read());
             configData += char(myFile.read());
         }
         // Serial.println(configData);
@@ -196,10 +234,91 @@ void M5_SD_JSON(const char *filename, String &configData)
     }
 }
 
+// int UOM_sensor()
+// {
+//     int heatingTime = 8;
+//     std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData;
+//     std::vector<int> heaterSettings = {150, 200, 250, 300, 350, 400, 450, 500};
+
+//     // auto end = std::chrono::steady_clock::now() + std::chrono::seconds(30); // Assuming you want to run this for 60 seconds
+//     auto start = std::chrono::steady_clock::now();
+//     auto end = start + std::chrono::seconds(30);
+
+//     while (std::chrono::steady_clock::now() < end)
+//     {
+//         for (int setting : heaterSettings)
+//         {
+//             bme.setGasHeater(setting, heatingTime);
+//             if (bme.performReading())
+//             {
+//                 UOM_sensorData[setting].push_back(bme.gas_resistance);
+//                 Serial.println("Data for setting " + String(setting) + ": " + String(bme.gas_resistance));
+//             }
+//         }
+//     }
+
+//     // // Optional: process or display the collected data
+//     // for (auto &[setting, dataVec] : UOM_sensorData)
+//     // {
+//     //     // std::cout << "Data for setting " << setting << ": ";
+//     //     Serial.println("Data for setting " + String(setting) + ": ");
+//     //     for (auto value : dataVec)
+//     //     {
+//     //         // std::cout << value << " ";
+//     //         Serial.println(value);
+//     //     }
+//     //     std::cout << std::endl;
+//     // }
+
+//     return 0;
+// }
+
+void bme_setup()
+{
+    if (!bme.begin())
+    {
+        Serial.println("Could not find a valid BME680 sensor, check wiring!");
+        while (1)
+            ;
+    }
+
+    // Set up oversampling and filter initialization
+    bme.setTemperatureOversampling(BME680_OS_8X);
+    bme.setHumidityOversampling(BME680_OS_2X);
+    bme.setPressureOversampling(BME680_OS_4X);
+    bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
+    // bme.setGasHeater(320, 150); // 320*C for 150 ms
+};
+
+void bme_read()
+{
+    // read bme data while expState = EXP_DAQ
+    // continue to push data into the sensorData vector
+    // if expState = EXP_SAVE, save the data to the SD card
+
+    if (expState == EXP_DAQ)
+    {
+        bme.performReading();
+        Serial.print(bme.temperature);
+        Serial.print(bme.pressure / 100.0);
+        Serial.print(bme.humidity);
+        Serial.print(bme.gas_resistance / 1000.0);
+        Serial.println(" KOhms");
+
+        // save data to the sensorData vector
+    }
+    else if (expState == EXP_SAVE)
+    {
+        // save data to the SD card
+    }
+}
+
 void readConfigCMD()
 {
-    commandMap["readConfig"] = []()
-    { read_number_of_setups(); };
-    // commandMap["sdTest"] = []()
-    // { M5_SD_CMD(); };
+    commandMap["startRTOS"] = []()
+    { expTask(); };
+    commandMap["sdTest"] = []()
+    { exp_build(); };
+    // commandMap["UOM_sensor"] = []()
+    // { UOM_sensor(); };
 }
