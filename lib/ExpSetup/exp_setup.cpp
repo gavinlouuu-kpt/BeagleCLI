@@ -234,44 +234,12 @@ void M5_SD_JSON(const char *filename, String &configData)
     }
 }
 
-int UOM_sensor()
+int heatingTime = 8;
+std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData;
+std::vector<int> heaterSettings = {150, 200, 250, 300, 350, 400, 450, 500};
+
+void displayMap(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData)
 {
-    if (!bme.begin())
-    {
-        Serial.println("Could not find a valid BME680 sensor, check wiring!");
-        while (1)
-            ;
-    }
-    int heatingTime = 8;
-    std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData;
-    std::vector<int> heaterSettings = {150, 200, 250, 300, 350, 400, 450, 500};
-
-    // auto end = std::chrono::steady_clock::now() + std::chrono::seconds(30); // Assuming you want to run this for 60 seconds
-    auto start = std::chrono::steady_clock::now();
-    auto end = start + std::chrono::seconds(30);
-    Serial.println("Starting the loop");
-    while (std::chrono::steady_clock::now() < end)
-    {
-        Serial.println("In the loop");
-        for (int setting : heaterSettings)
-        {
-            Serial.print("Setting the gas heater to ");
-            Serial.println(setting);
-            bme.setGasHeater(setting, heatingTime);
-            if (bme.performReading())
-            {
-                UOM_sensorData[setting].push_back(bme.gas_resistance);
-                Serial.print("Gas Resistance: ");
-                Serial.println(bme.gas_resistance);
-            }
-            else
-            {
-                Serial.println("Failed to perform reading.");
-            }
-        }
-    }
-
-    // Optional: process or display the collected data
     for (auto iter = UOM_sensorData.begin(); iter != UOM_sensorData.end(); ++iter)
     {
         int setting = iter->first;                           // Extract the setting
@@ -287,11 +255,49 @@ int UOM_sensor()
         }
         Serial.println(); // Adds a new line after the list of data for readability
     }
+    Serial.println("All data printed");
+}
+// save uom data as csv file in SD card
+void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData)
+{
+    // File name for the CSV file
+    const char *filename = "/uomData.csv";
 
-    return 0;
+    // Open the file in write mode
+    File myFile = SD.open(filename, FILE_WRITE);
+
+    // Check if the file was opened successfully
+    if (myFile)
+    {
+        // Write the header row
+        myFile.println("Setting,Data");
+
+        // Write the data
+        for (auto iter = UOM_sensorData.begin(); iter != UOM_sensorData.end(); ++iter)
+        {
+            int setting = iter->first;                           // Extract the setting
+            const std::vector<uint32_t> &dataVec = iter->second; // Extract the vector of data
+
+            for (auto value : dataVec)
+            {
+                myFile.print(setting);
+                myFile.print(",");
+                myFile.println(value);
+            }
+        }
+
+        // Close the file
+        myFile.close();
+    }
+    else
+    {
+        Serial.println("Error opening file for writing");
+    }
 }
 
-void bme_setup()
+
+// called as RTOS task
+int UOM_sensor(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
 {
     if (!bme.begin())
     {
@@ -300,35 +306,73 @@ void bme_setup()
             ;
     }
 
-    // Set up oversampling and filter initialization
-    bme.setTemperatureOversampling(BME680_OS_8X);
-    bme.setHumidityOversampling(BME680_OS_2X);
-    bme.setPressureOversampling(BME680_OS_4X);
-    bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
-    // bme.setGasHeater(320, 150); // 320*C for 150 ms
-};
+    while (expState == EXP_DAQ)
+    {
+        Serial.println("In the loop");
+        for (int setting : heaterSettings)
+        {
+            Serial.print("Setting the gas heater to ");
+            Serial.println(setting);
+            bme.setGasHeater(setting, heatingTime);
+            if (bme.performReading())
+            {
+                UOM_sensorData[setting].push_back(bme.gas_resistance);
+                Serial.print("Gas Resistance: ");
+                Serial.println(bme.gas_resistance);
+                Serial.println(expState);
+            }
+            else
+            {
+                Serial.println("Failed to perform reading.");
+            }
+        }
+    }
 
-void bme_read()
+    // Optional: process or display the collected data
+    displayMap(UOM_sensorData);
+    saveUOMData(UOM_sensorData);
+
+    return 0;
+}
+
+
+void uomTest()
 {
-    // read bme data while expState = EXP_DAQ
-    // continue to push data into the sensorData vector
-    // if expState = EXP_SAVE, save the data to the SD card
+    UOM_sensor(UOM_sensorData, heaterSettings, heatingTime);
+}
 
-    if (expState == EXP_DAQ)
-    {
-        bme.performReading();
-        Serial.print(bme.temperature);
-        Serial.print(bme.pressure / 100.0);
-        Serial.print(bme.humidity);
-        Serial.print(bme.gas_resistance / 1000.0);
-        Serial.println(" KOhms");
+void sample_start(void *pvParameters)
+{
+    uomTest();
+    vTaskDelete(NULL);
+}
 
-        // save data to the sensorData vector
-    }
-    else if (expState == EXP_SAVE)
-    {
-        // save data to the SD card
-    }
+void sampleTask()
+{
+    xTaskCreate(
+        sample_start,   /* Task function. */
+        "sample_start", /* String with name of task. */
+        10000,          /* Stack size in bytes. */
+        NULL,           /* Parameter passed as input of the task */
+        1,              /* Priority of the task. */
+        NULL);          /* Task handle. */
+}
+
+void expDAQ()
+{
+    expState = EXP_DAQ;
+    Serial.println("Setting expState to state:" + String(expState));
+}
+
+void expIDLE()
+{
+    expState = EXP_IDLE;
+    Serial.println("Setting expState to state:" + String(expState));
+}
+
+void checkState()
+{
+    Serial.println("Current state: " + String(expState));
 }
 
 void readConfigCMD()
@@ -337,6 +381,14 @@ void readConfigCMD()
     { expTask(); };
     commandMap["sdTest"] = []()
     { exp_build(); };
-    commandMap["UOM_sensor"] = []()
-    { UOM_sensor(); };
+    commandMap["uomTest"] = []()
+    { uomTest(); };
+    commandMap["sampleTask"] = []()
+    { sampleTask(); };
+    commandMap["expDAQ"] = []()
+    { expDAQ(); };
+    commandMap["expIDLE"] = []()
+    { expIDLE(); };
+    commandMap["checkState"] = []()
+    { checkState(); };
 }

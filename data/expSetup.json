@@ -1,5 +1,7 @@
 {
     "setup_1": {
+        "exp_name": "exp_abc",
+        "exp_info": "abc",
         "duration(s)": 3,
         "repeat": 5,
         "channel": [
