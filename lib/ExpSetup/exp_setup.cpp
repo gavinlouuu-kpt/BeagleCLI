@@ -295,7 +295,6 @@ void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData)
     }
 }
 
-
 // called as RTOS task
 int UOM_sensor(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
 {
@@ -334,7 +333,6 @@ int UOM_sensor(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData, st
 
     return 0;
 }
-
 
 void uomTest()
 {
@@ -375,6 +373,57 @@ void checkState()
     Serial.println("Current state: " + String(expState));
 }
 
+void expTest()
+{
+    c7_on();
+    delay(100);
+    cmd_on();
+    delay(100);
+    expDAQ();
+    delay(100);
+    sampleTask();
+    delay(30000);
+    c0_on_off();
+    delay(60000);
+    expIDLE();
+    delay(100);
+    relay_off();
+}
+
+void expTest_2()
+{
+    c7_on();
+    delay(100);
+    cmd_on();
+    delay(100);
+    expDAQ();
+    delay(100);
+    sampleTask();
+    delay(30000);
+    c1_on_off();
+    delay(60000);
+    expIDLE();
+    delay(100);
+    relay_off();
+}
+
+void expTest_3()
+{
+    c7_on();
+    delay(100);
+    cmd_on();
+    delay(100);
+    expDAQ();
+    delay(100);
+    sampleTask();
+    delay(30000);
+    c2_on_off();
+    delay(60000);
+    expIDLE();
+    delay(100);
+    relay_off();
+}
+
 void readConfigCMD()
 {
     commandMap["startRTOS"] = []()
@@ -391,4 +440,10 @@ void readConfigCMD()
     { expIDLE(); };
     commandMap["checkState"] = []()
     { checkState(); };
+    commandMap["exp_run"] = []()
+    { expTest(); };
+    commandMap["exp_run2"] = []()
+    { expTest_2(); };
+    commandMap["exp_run3"] = []()
+    { expTest_3(); };
 }

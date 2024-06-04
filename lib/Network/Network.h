@@ -3,18 +3,20 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
-//state management
+// state management
 void networkState();
 void networkCMD();
-class WiFiManager {
+void networkCheck();
+
+class WiFiManager
+{
 public:
   WiFiManager();
   void ManageWIFI();
   void scanNetworks();
   String selectNetwork();
   String inputPassword();
-  bool connectToWiFi(const String& ssid, const String& password);
+  bool connectToWiFi(const String &ssid, const String &password);
 };
 
-
-#endif //NETWORK_H
+#endif // NETWORK_H

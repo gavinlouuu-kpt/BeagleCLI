@@ -114,6 +114,48 @@ void cmd_on()
     Serial2.write(command.data(), command.size());
 }
 
+void c7_on()
+{
+    delay(10);
+    std::vector<uint8_t> command = switchCommand(1, 7, 1);
+    Serial2.write(command.data(), command.size());
+}
+
+void man_test(int x)
+{
+    Serial2.flush();
+    delay(10);
+    std::vector<uint8_t> command = switchCommand(1, x, 1);
+    Serial2.write(command.data(), command.size());
+    Serial2.flush();
+    delay(10);
+    std::vector<uint8_t> command2 = switchCommand(1, 7, 0);
+    Serial2.write(command2.data(), command2.size());
+    Serial2.flush();
+    delay(500);
+    std::vector<uint8_t> command3 = switchCommand(1, x, 0);
+    Serial2.write(command3.data(), command3.size());
+    Serial2.flush();
+    delay(10);
+    std::vector<uint8_t> command4 = switchCommand(1, 7, 1);
+    Serial2.write(command4.data(), command4.size());
+}
+
+void c0_on_off()
+{
+    man_test(0);
+}
+
+void c1_on_off()
+{
+    man_test(1);
+}
+
+void c2_on_off()
+{
+    man_test(2);
+}
+
 void zsrelayCMD()
 {
     commandMap["onRelay"] = []()
@@ -126,4 +168,12 @@ void zsrelayCMD()
     { cmd_on(); };
     commandMap["cmdOFF"] = []()
     { cmd_off(); };
+    commandMap["c0"] = []()
+    { c0_on_off(); };
+    commandMap["c1"] = []()
+    { c1_on_off(); };
+    commandMap["c2"] = []()
+    { c2_on_off(); };
+    commandMap["c7"] = []()
+    { c7_on(); };
 }

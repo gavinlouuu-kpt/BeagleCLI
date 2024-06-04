@@ -14,5 +14,12 @@ void test_calc();
 std::vector<uint8_t> switchCommand(int devicePosition, int relayAddress, int relayState);
 void cmd_test();
 
+void c7_on();
+void cmd_on();
+void c0_on_off();
+void c1_on_off();
+void c2_on_off();
+void cmd_on();
+
 
 #endif // ZSRELAY_H

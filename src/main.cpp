@@ -11,7 +11,7 @@
 #include <vector>
 // #include <Hardware.h>
 #include <beagleCLI.h>
-// #include <Network.h>
+#include <Network.h>
 // #include <SPI.h>
 #include <Firebase_ESP_Client.h>
 #include <M5Stack.h>
@@ -170,6 +170,7 @@ void setup()
   pwmSetup(); //something in pwm setup is causing sd card to not initialize properly
   */
   cmdSetup();
+  networkCheck();
   // M5_example();
   // const char *filename = "/expSetup.json";
   // String configData;
