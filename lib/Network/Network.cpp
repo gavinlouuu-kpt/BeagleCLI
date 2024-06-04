@@ -166,7 +166,7 @@ void wifiCheckTask(void *pvParameters)
         {
             backgroundWIFI();
         }
-        vTaskDelay(pdMS_TO_TICKS(10000)); // Check every 60 seconds
+        vTaskDelay(pdMS_TO_TICKS(10000)); // Check every 10 seconds
     }
 }
 
@@ -302,8 +302,10 @@ bool WiFiManager::connectToWiFi(const String &ssid, const String &password)
         Serial.println("\nConnected!");
         Serial.print("IP Address: ");
         Serial.println(WiFi.localIP());
-        configTime(gmtOffset_sec, daylightOffset_sec, "hk.pool.ntp.org", "asia.pool.ntp.org", "time.nist.gov"); // Initialize NTP
-        return true;                                                                                            // Return true if connected
+        long hkGMToffset = 28800;
+        long daylightOffset_sec = 0;
+        configTime(hkGMToffset, daylightOffset_sec, "hk.pool.ntp.org", "asia.pool.ntp.org", "time.nist.gov"); // Initialize NTP
+        return true;                                                                                          // Return true if connected
     }
     else
     {

@@ -14,19 +14,52 @@
 #include <Adafruit_BME680.h>
 
 #include <unordered_map>
+#include <WiFi.h>
 
 Adafruit_BME680 bme; // I2C
+
+// Declare a mutex
+SemaphoreHandle_t expStateMutex;
 
 enum ExpState
 {
     EXP_IDLE,
     EXP_WARMING_UP,
+    EXP_SAVE,
     EXP_READY,
     EXP_DAQ,
-    EXP_SAVE
+
 };
 
 ExpState expState = EXP_IDLE;
+
+void expMutexSetup()
+{
+    // Create the mutex in your setup function
+    expStateMutex = xSemaphoreCreateMutex();
+}
+
+// Use the mutex when accessing expState
+void mutexEdit(ExpState state)
+{
+    // Take the mutex, waiting indefinitely for it to become available
+    xSemaphoreTake(expStateMutex, portMAX_DELAY);
+    expState = state;
+    Serial.println("Setting expState to state:" + String(expState));
+    // Give the mutex back
+    xSemaphoreGive(expStateMutex);
+}
+
+// Do the same when reading expState
+ExpState getExpState()
+{
+    // Take the mutex, waiting indefinitely for it to become available
+    xSemaphoreTake(expStateMutex, portMAX_DELAY);
+    ExpState currentState = expState;
+    // Give the mutex back
+    xSemaphoreGive(expStateMutex);
+    return currentState;
+}
 
 std::vector<int> stringToArray(const std::string &str)
 {
@@ -79,10 +112,14 @@ std::vector<int> getArr(FirebaseJson json, int setup_no, String target)
     return result;
 }
 
-int count_setup(FirebaseJson json)
+int count_setup(String jsonString)
 {
     size_t setupCount = 0;
+    FirebaseJson json;
     FirebaseJsonData jsonData;
+    Serial.println(jsonString);
+    json.setJsonData(jsonString);
+    Serial.println("Counting Setups");
 
     // Assuming setups are named 'setup_1', 'setup_2', ..., 'setup_n'
     for (int i = 1; i <= 10; i++)
@@ -92,14 +129,20 @@ int count_setup(FirebaseJson json)
         {
             setupCount++;
         }
+        // Serial.println("Setup count: " + String(setupCount));
     }
 
     return setupCount;
 }
 
+int setup_tracker = 0;
+int repeat_tracker = 0;
+int channel_tracker = 0;
+
 void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
 {
-    expState = EXP_WARMING_UP;
+    mutexEdit(EXP_WARMING_UP);
+    Serial.println("State = EXP_WARMING_UP" + String(expState));
     std::vector<uint8_t> pump_on = switchCommand(1, 47, 1);
     Serial2.write(pump_on.data(), pump_on.size());
     Serial.println("Pump command: ");
@@ -110,6 +153,7 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
 
     for (int i = 1; i <= setup_count; i++)
     {
+        setup_tracker = i;
         int duration = getInt(config, i, "/duration(s)");
         duration = duration * 1000;
         int repeat = getInt(config, i, "/repeat");
@@ -121,20 +165,29 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
             Serial.println("Invalid setup: " + String(i));
             continue;
         }
-        expState = EXP_READY;
+        mutexEdit(EXP_READY); // Set experiment state to READY
+        Serial.println("State = EXP_READY" + String(expState));
 
         // for each channel in the array, run the experiment
         Serial.println("Running experiment for setup: " + String(i));
         for (int j = 0; j < repeat; j++)
         {
+            repeat_tracker = j;
             Serial.println("Running experiment for setup: " + String(i) + " repeat: " + String(j));
-            for (int channel : channels)
+            for (int cur_channel : channels)
             {
-                expState = EXP_DAQ;
+                channel_tracker = cur_channel;
+                // Only proceed if the state is EXP_READY
+                while (expState != EXP_READY)
+                {
+                    Serial.print("/");
+                }
+                mutexEdit(EXP_DAQ);
+                Serial.println("State = EXP_DAQ" + String(expState));
                 // RTOS logic that is driven by events
                 // use rtos to collect data and flag to signal start and stop for data saving
-                Serial.println("Running experiment for channel: " + String(channel));
-                std::vector<uint8_t> on_command = switchCommand(1, channel, 1);
+                Serial.println("Running experiment for channel: " + String(cur_channel));
+                std::vector<uint8_t> on_command = switchCommand(1, cur_channel, 1);
 
                 Serial.println("On command: ");
                 for (uint8_t i : on_command)
@@ -143,22 +196,23 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
                 }
                 Serial.println("");
 
-                Serial.println("Turning on channel: " + String(channel));
+                Serial.println("Turning on channel: " + String(cur_channel));
                 Serial2.write(on_command.data(), on_command.size());
                 delay(duration);
                 // flush serial
 
-                std::vector<uint8_t> off_command = switchCommand(1, channel, 0);
+                std::vector<uint8_t> off_command = switchCommand(1, cur_channel, 0);
                 Serial.println("Off command: ");
                 for (uint8_t i : off_command)
                 {
                     Serial.print(i);
                 }
                 Serial.println("");
-                Serial.println("Turning off channel: " + String(channel));
+                Serial.println("Turning off channel: " + String(cur_channel));
                 Serial2.write(off_command.data(), off_command.size());
                 delay(exp_time);
-                expState = EXP_SAVE;
+                mutexEdit(EXP_SAVE);
+                Serial.println("State = EXP_SAVE" + String(expState));
                 // wait for data to be saved and expState to be set to EXP_READY
             }
         }
@@ -171,7 +225,12 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
     {
         Serial.print(i);
     }
-    expState = EXP_IDLE;
+    Serial.println("END of LOOP");
+    while (expState != EXP_READY)
+    {
+        Serial.print("/");
+    }
+    mutexEdit(EXP_IDLE);
 }
 
 void exp_build()
@@ -182,7 +241,8 @@ void exp_build()
     M5_SD_JSON(filename, configData);
     FirebaseJson json;
     json.setJsonData(configData);
-    int setupCount = count_setup(json);
+    int setupCount = count_setup(configData);
+    Serial.println("Number of setups: " + String(setupCount));
     exp_loop(json, setupCount);
 }
 
@@ -221,10 +281,13 @@ void M5_SD_JSON(const char *filename, String &configData)
         M5.Lcd.println("with cmd /expSetup.json Content:");
         while (myFile.available())
         {
-            M5.Lcd.write(myFile.read());
+            // M5.Lcd.write(myFile.read());
+            // or
             configData += char(myFile.read());
+            // DO NOT TURN ON BOTH AT THE SAME TIME
         }
-        // Serial.println(configData);
+        Serial.println("SD Config data: ");
+        Serial.println(configData);
         myFile.close();
     }
     else
@@ -258,10 +321,34 @@ void displayMap(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData)
     Serial.println("All data printed");
 }
 // save uom data as csv file in SD card
-void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData)
+void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData, int setup_tracker, int repeat_tracker, int channel_tracker)
 {
-    // File name for the CSV file
-    const char *filename = "/uomData.csv";
+
+    std::string macAddressTest = WiFi.macAddress().c_str();
+    // obtain date
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo))
+    {
+        Serial.println("Failed to obtain time");
+        return;
+    }
+    char today[11];                                                    // Buffer to hold the date string
+    strftime(today, sizeof(today), "%Y_%m_%d", &timeinfo);             // Format: YYYY-MM-DD
+    char currentTime[9];                                               // Buffer to hold the time string
+    strftime(currentTime, sizeof(currentTime), "%H_%M_%S", &timeinfo); // Format: HH:MM:SS
+    String folderPath = "/" + String(today);
+    // Ensuring the folder exists or create if it does not
+    if (!SD.exists(folderPath))
+    {
+        if (!SD.mkdir(folderPath))
+        {
+            Serial.println("Failed to create today's directory");
+            return;
+        }
+    }
+
+    String uniqueFilename = folderPath + "/" + String(currentTime) + "s" + String(setup_tracker) + "c" + String(channel_tracker) + "r" + String(repeat_tracker) + ".csv";
+    const char *filename = uniqueFilename.c_str();
 
     // Open the file in write mode
     File myFile = SD.open(filename, FILE_WRITE);
@@ -296,7 +383,54 @@ void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData)
 }
 
 // called as RTOS task
-int UOM_sensor(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
+// int UOM_sensor(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
+// {
+//     // while (expState != EXP_DAQ)
+//     // {
+//     //     // Serial.println("Waiting for the experiment to start");
+//     // }
+//     while (expState == EXP_DAQ)
+//     {
+//         // Serial.println("In the sampling loop");
+//         if (!bme.begin())
+//         {
+//             Serial.println("Could not find a valid BME680 sensor, check wiring!");
+//             while (1)
+//                 ;
+//         }
+//         for (int setting : heaterSettings)
+//         {
+//             Serial.print(".");
+//             // Serial.print("Setting the gas heater to ");
+//             // Serial.println(setting);
+//             bme.setGasHeater(setting, heatingTime);
+//             if (bme.performReading())
+//             {
+//                 UOM_sensorData[setting].push_back(bme.gas_resistance);
+//                 // Serial.print("Gas Resistance: ");
+//                 // Serial.println(bme.gas_resistance);
+//                 // Serial.println(expState);
+//             }
+//             else
+//             {
+//                 Serial.println("Failed to perform reading.");
+//             }
+//         }
+//     }
+//     if (expState == EXP_SAVE)
+//     {
+//         Serial.println("Saving data");
+//         // save the data
+//         // displayMap(UOM_sensorData);
+//         saveUOMData(UOM_sensorData, setup_tracker, repeat_tracker, channel_tracker);
+//         expState = EXP_READY;
+//         return 1;
+//     }
+
+//     return 0;
+// }
+
+int UOM_sensor(std::unordered_map<int, std::vector<uint32_t>> &UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
 {
     if (!bme.begin())
     {
@@ -304,45 +438,44 @@ int UOM_sensor(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData, st
         while (1)
             ;
     }
-
-    while (expState == EXP_DAQ)
+    for (int setting : heaterSettings)
     {
-        Serial.println("In the loop");
-        for (int setting : heaterSettings)
+        Serial.print(".");
+        bme.setGasHeater(setting, heatingTime);
+        if (bme.performReading())
         {
-            Serial.print("Setting the gas heater to ");
-            Serial.println(setting);
-            bme.setGasHeater(setting, heatingTime);
-            if (bme.performReading())
-            {
-                UOM_sensorData[setting].push_back(bme.gas_resistance);
-                Serial.print("Gas Resistance: ");
-                Serial.println(bme.gas_resistance);
-                Serial.println(expState);
-            }
-            else
-            {
-                Serial.println("Failed to perform reading.");
-            }
+            UOM_sensorData[setting].push_back(bme.gas_resistance);
+        }
+        else
+        {
+            Serial.println("Failed to perform reading.");
         }
     }
-
-    // Optional: process or display the collected data
-    displayMap(UOM_sensorData);
-    saveUOMData(UOM_sensorData);
 
     return 0;
 }
 
-void uomTest()
-{
-    UOM_sensor(UOM_sensorData, heaterSettings, heatingTime);
-}
-
 void sample_start(void *pvParameters)
 {
-    uomTest();
-    vTaskDelete(NULL);
+    for (;;)
+    {
+        // uomTest();
+        int currentState = getExpState();
+        // Serial.print("-");
+        if (currentState == EXP_DAQ) // EXP_DAQ)
+        {
+
+            UOM_sensor(UOM_sensorData, heaterSettings, heatingTime);
+        }
+        else if (currentState == EXP_SAVE)
+        {
+            // Serial.print("+");
+            displayMap(UOM_sensorData);
+            saveUOMData(UOM_sensorData, setup_tracker, repeat_tracker, channel_tracker);
+            mutexEdit(EXP_READY);
+        }
+        // vTaskDelay(pdMS_TO_TICKS(10));
+    }
 }
 
 void sampleTask()
@@ -358,70 +491,22 @@ void sampleTask()
 
 void expDAQ()
 {
-    expState = EXP_DAQ;
-    Serial.println("Setting expState to state:" + String(expState));
+    mutexEdit(EXP_DAQ);
 }
 
 void expIDLE()
 {
-    expState = EXP_IDLE;
-    Serial.println("Setting expState to state:" + String(expState));
+    mutexEdit(EXP_IDLE);
+}
+
+void expSAVE()
+{
+    mutexEdit(EXP_SAVE);
 }
 
 void checkState()
 {
     Serial.println("Current state: " + String(expState));
-}
-
-void expTest()
-{
-    c7_on();
-    delay(100);
-    cmd_on();
-    delay(100);
-    expDAQ();
-    delay(100);
-    sampleTask();
-    delay(30000);
-    c0_on_off();
-    delay(60000);
-    expIDLE();
-    delay(100);
-    relay_off();
-}
-
-void expTest_2()
-{
-    c7_on();
-    delay(100);
-    cmd_on();
-    delay(100);
-    expDAQ();
-    delay(100);
-    sampleTask();
-    delay(30000);
-    c1_on_off();
-    delay(60000);
-    expIDLE();
-    delay(100);
-    relay_off();
-}
-
-void expTest_3()
-{
-    c7_on();
-    delay(100);
-    cmd_on();
-    delay(100);
-    expDAQ();
-    delay(100);
-    sampleTask();
-    delay(30000);
-    c2_on_off();
-    delay(60000);
-    expIDLE();
-    delay(100);
-    relay_off();
 }
 
 void readConfigCMD()
@@ -430,20 +515,14 @@ void readConfigCMD()
     { expTask(); };
     commandMap["sdTest"] = []()
     { exp_build(); };
-    commandMap["uomTest"] = []()
-    { uomTest(); };
     commandMap["sampleTask"] = []()
     { sampleTask(); };
     commandMap["expDAQ"] = []()
     { expDAQ(); };
     commandMap["expIDLE"] = []()
     { expIDLE(); };
+    commandMap["expSAVE"] = []()
+    { expSAVE(); };
     commandMap["checkState"] = []()
     { checkState(); };
-    commandMap["exp_run"] = []()
-    { expTest(); };
-    commandMap["exp_run2"] = []()
-    { expTest_2(); };
-    commandMap["exp_run3"] = []()
-    { expTest_3(); };
 }
