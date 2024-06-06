@@ -94,6 +94,25 @@ int getInt(FirebaseJson json, int setup_no, String target)
     return result;
 }
 
+String getExpName(FirebaseJson json, int setup_no, String target)
+{
+    // get item within a setup
+    FirebaseJsonData jsonData;
+    String key = "setup_" + String(setup_no);
+    String full_key = key + target;
+    String result;
+    if (json.get(jsonData, full_key))
+    {
+        json.get(jsonData, full_key);
+        result = jsonData.to<String>().c_str();
+    }
+    else
+    {
+        Serial.println("Failed to find key: " + target);
+    }
+    return result;
+}
+
 std::vector<int> getArr(FirebaseJson json, int setup_no, String target)
 {
     FirebaseJsonData jsonData;
@@ -138,6 +157,7 @@ int count_setup(String jsonString)
 int setup_tracker = 0;
 int repeat_tracker = 0;
 int channel_tracker = 0;
+String exp_name = "";
 
 void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
 {
@@ -154,6 +174,7 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
     for (int i = 1; i <= setup_count; i++)
     {
         setup_tracker = i;
+        exp_name = getExpName(config, i, "/exp_name");
         int duration = getInt(config, i, "/duration(s)");
         duration = duration * 1000;
         int repeat = getInt(config, i, "/repeat");
@@ -180,7 +201,8 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
                 // Only proceed if the state is EXP_READY
                 while (expState != EXP_READY)
                 {
-                    Serial.print("/");
+                    // Serial.print("/");
+                    vTaskDelay(pdMS_TO_TICKS(1000));
                 }
                 mutexEdit(EXP_DAQ);
                 Serial.println("State = EXP_DAQ" + String(expState));
@@ -228,7 +250,8 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
     Serial.println("END of LOOP");
     while (expState != EXP_READY)
     {
-        Serial.print("/");
+        // Serial.print("/");
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
     mutexEdit(EXP_IDLE);
 }
@@ -320,8 +343,73 @@ void displayMap(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData)
     }
     Serial.println("All data printed");
 }
+
+String createOrIncrementFolder(String folderPath)
+{
+    String checkedPath;
+    if (SD.exists(folderPath))
+    {
+        // Check if the path ends with an underscore and a number
+        int underscoreIndex = folderPath.lastIndexOf('_');
+        if (underscoreIndex != -1 && underscoreIndex < folderPath.length() - 1)
+        {
+            // Attempt to convert the substring after underscore to an integer
+            int i = folderPath.substring(underscoreIndex + 1).toInt();
+            if (i > 0)
+            {
+                // Successfully parsed the number, increment and create new folder
+                checkedPath = folderPath.substring(0, underscoreIndex) + "_" + (i + 1);
+                if (SD.mkdir(checkedPath.c_str()))
+                {
+                    Serial.println("New directory created: " + checkedPath);
+                }
+                else
+                {
+                    Serial.println("Failed to create directory: " + checkedPath);
+                }
+            }
+        }
+        else
+        {
+            // No underscore with a number, create folder with "_1"
+            checkedPath = folderPath + "_1";
+            if (SD.mkdir(checkedPath.c_str()))
+            {
+                Serial.println("New directory created: " + checkedPath);
+            }
+            else
+            {
+                Serial.println("Failed to create directory: " + checkedPath);
+            }
+        }
+    }
+    else
+    {
+        // Folder path does not exist, attempt to create it
+        if (SD.mkdir(checkedPath.c_str()))
+        {
+            Serial.println("Directory created: " + folderPath);
+            // Optionally create the first enumerated folder after the base folder
+            checkedPath = folderPath + "_1";
+            if (SD.mkdir(checkedPath.c_str()))
+            {
+                Serial.println("Enumerated directory created: " + checkedPath);
+            }
+            else
+            {
+                Serial.println("Failed to create enumerated directory: " + checkedPath);
+            }
+        }
+        else
+        {
+            Serial.println("Failed to create base directory: " + checkedPath);
+        }
+    }
+    return checkedPath;
+}
+
 // save uom data as csv file in SD card
-void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData, int setup_tracker, int repeat_tracker, int channel_tracker)
+void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> &UOM_sensorData, int setup_tracker, int repeat_tracker, int channel_tracker, String exp_name)
 {
 
     std::string macAddressTest = WiFi.macAddress().c_str();
@@ -336,18 +424,21 @@ void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData, 
     strftime(today, sizeof(today), "%Y_%m_%d", &timeinfo);             // Format: YYYY-MM-DD
     char currentTime[9];                                               // Buffer to hold the time string
     strftime(currentTime, sizeof(currentTime), "%H_%M_%S", &timeinfo); // Format: HH:MM:SS
-    String folderPath = "/" + String(today);
-    // Ensuring the folder exists or create if it does not
-    if (!SD.exists(folderPath))
-    {
-        if (!SD.mkdir(folderPath))
-        {
-            Serial.println("Failed to create today's directory");
-            return;
-        }
-    }
+    String folderPath = "/" + String(today) + "/" + exp_name;
 
-    String uniqueFilename = folderPath + "/" + String(currentTime) + "s" + String(setup_tracker) + "c" + String(channel_tracker) + "r" + String(repeat_tracker) + ".csv";
+    String cPath = createOrIncrementFolder(folderPath);
+
+    // Ensuring the folder exists or create if it does not
+    // if (!SD.exists(folderPath))
+    // {
+    //     if (!SD.mkdir(folderPath))
+    //     {
+    //         Serial.println("Failed to create today's directory");
+    //         return;
+    //     }
+    // }
+    String uniqueFilename = cPath + "/" + String(currentTime) + "s" + String(setup_tracker) + "c" + String(channel_tracker) + "r" + String(repeat_tracker) + ".csv";
+    // String uniqueFilename = folderPath + "/" + String(currentTime) + "s" + String(setup_tracker) + "c" + String(channel_tracker) + "r" + String(repeat_tracker) + ".csv";
     const char *filename = uniqueFilename.c_str();
 
     // Open the file in write mode
@@ -380,55 +471,8 @@ void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData, 
     {
         Serial.println("Error opening file for writing");
     }
+    UOM_sensorData.clear();
 }
-
-// called as RTOS task
-// int UOM_sensor(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
-// {
-//     // while (expState != EXP_DAQ)
-//     // {
-//     //     // Serial.println("Waiting for the experiment to start");
-//     // }
-//     while (expState == EXP_DAQ)
-//     {
-//         // Serial.println("In the sampling loop");
-//         if (!bme.begin())
-//         {
-//             Serial.println("Could not find a valid BME680 sensor, check wiring!");
-//             while (1)
-//                 ;
-//         }
-//         for (int setting : heaterSettings)
-//         {
-//             Serial.print(".");
-//             // Serial.print("Setting the gas heater to ");
-//             // Serial.println(setting);
-//             bme.setGasHeater(setting, heatingTime);
-//             if (bme.performReading())
-//             {
-//                 UOM_sensorData[setting].push_back(bme.gas_resistance);
-//                 // Serial.print("Gas Resistance: ");
-//                 // Serial.println(bme.gas_resistance);
-//                 // Serial.println(expState);
-//             }
-//             else
-//             {
-//                 Serial.println("Failed to perform reading.");
-//             }
-//         }
-//     }
-//     if (expState == EXP_SAVE)
-//     {
-//         Serial.println("Saving data");
-//         // save the data
-//         // displayMap(UOM_sensorData);
-//         saveUOMData(UOM_sensorData, setup_tracker, repeat_tracker, channel_tracker);
-//         expState = EXP_READY;
-//         return 1;
-//     }
-
-//     return 0;
-// }
 
 int UOM_sensor(std::unordered_map<int, std::vector<uint32_t>> &UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
 {
@@ -470,8 +514,8 @@ void sample_start(void *pvParameters)
         else if (currentState == EXP_SAVE)
         {
             // Serial.print("+");
-            displayMap(UOM_sensorData);
-            saveUOMData(UOM_sensorData, setup_tracker, repeat_tracker, channel_tracker);
+            // displayMap(UOM_sensorData);
+            saveUOMData(UOM_sensorData, setup_tracker, repeat_tracker, channel_tracker, exp_name);
             mutexEdit(EXP_READY);
         }
         // vTaskDelay(pdMS_TO_TICKS(10));
