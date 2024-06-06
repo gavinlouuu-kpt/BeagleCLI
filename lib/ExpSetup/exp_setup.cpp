@@ -154,10 +154,12 @@ int count_setup(String jsonString)
     return setupCount;
 }
 
+int last_setup_tracker = -1;
 int setup_tracker = 0;
 int repeat_tracker = 0;
 int channel_tracker = 0;
 String exp_name = "";
+String currentPath = "";
 
 void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
 {
@@ -235,6 +237,11 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
                 delay(exp_time);
                 mutexEdit(EXP_SAVE);
                 Serial.println("State = EXP_SAVE" + String(expState));
+                while (expState != EXP_READY)
+                {
+                    // Serial.print("/");
+                    vTaskDelay(pdMS_TO_TICKS(1000));
+                }
                 // wait for data to be saved and expState to be set to EXP_READY
             }
         }
@@ -248,11 +255,7 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
         Serial.print(i);
     }
     Serial.println("END of LOOP");
-    while (expState != EXP_READY)
-    {
-        // Serial.print("/");
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+    last_setup_tracker = -1;
     mutexEdit(EXP_IDLE);
 }
 
@@ -344,127 +347,139 @@ void displayMap(std::unordered_map<int, std::vector<uint32_t>> UOM_sensorData)
     Serial.println("All data printed");
 }
 
-String createOrIncrementFolder(String folderPath)
+bool ensureDirectoryExists(String path)
 {
-    String checkedPath;
-    if (SD.exists(folderPath))
+    if (!SD.exists(path))
     {
-        // Check if the path ends with an underscore and a number
-        int underscoreIndex = folderPath.lastIndexOf('_');
-        if (underscoreIndex != -1 && underscoreIndex < folderPath.length() - 1)
+        if (SD.mkdir(path.c_str()))
         {
-            // Attempt to convert the substring after underscore to an integer
-            int i = folderPath.substring(underscoreIndex + 1).toInt();
-            if (i > 0)
-            {
-                // Successfully parsed the number, increment and create new folder
-                checkedPath = folderPath.substring(0, underscoreIndex) + "_" + (i + 1);
-                if (SD.mkdir(checkedPath.c_str()))
-                {
-                    Serial.println("New directory created: " + checkedPath);
-                }
-                else
-                {
-                    Serial.println("Failed to create directory: " + checkedPath);
-                }
-            }
+            Serial.println("Directory created: " + path);
+            return true;
         }
         else
         {
-            // No underscore with a number, create folder with "_1"
-            checkedPath = folderPath + "_1";
-            if (SD.mkdir(checkedPath.c_str()))
-            {
-                Serial.println("New directory created: " + checkedPath);
-            }
-            else
-            {
-                Serial.println("Failed to create directory: " + checkedPath);
-            }
+            Serial.println("Failed to create directory: " + path);
+            return false;
         }
+    }
+    return true;
+}
+
+// String incrementFolder(String folderPath)
+// {
+//     int underscoreIndex = folderPath.lastIndexOf('_');
+//     int lastNumber = 0;
+//     if (underscoreIndex != -1 && underscoreIndex < folderPath.length() - 1)
+//     {
+//         lastNumber = folderPath.substring(underscoreIndex + 1).toInt();
+//     }
+//     String newPath;
+//     do
+//     {
+//         newPath = folderPath.substring(0, underscoreIndex) + "_" + (++lastNumber);
+//     } while (SD.exists(newPath));
+//     if (SD.mkdir(newPath.c_str()))
+//     {
+//         Serial.println("New directory created: " + newPath);
+//     }
+//     else
+//     {
+//         Serial.println("Failed to create directory: " + newPath);
+//     }
+//     return newPath;
+// }
+
+String incrementFolder(String folderPath)
+{
+    int underscoreIndex = folderPath.lastIndexOf('_');
+    int lastNumber = 0;
+    String basePart = folderPath;
+
+    // Check if the substring after the last underscore can be converted to a number
+    if (underscoreIndex != -1 && underscoreIndex < folderPath.length() - 1)
+    {
+        String numPart = folderPath.substring(underscoreIndex + 1);
+        if (numPart.toInt() != 0 || numPart == "0")
+        { // Checks if conversion was successful or is "0"
+            lastNumber = numPart.toInt();
+            basePart = folderPath.substring(0, underscoreIndex); // Adjust the base part to exclude the number
+        }
+    }
+
+    // Increment and create a new folder name with the updated number
+    String newPath;
+    do
+    {
+        newPath = basePart + "_" + (++lastNumber);
+    } while (SD.exists(newPath));
+
+    if (SD.mkdir(newPath.c_str()))
+    {
+        Serial.println("New directory created: " + newPath);
     }
     else
     {
-        // Folder path does not exist, attempt to create it
-        if (SD.mkdir(checkedPath.c_str()))
-        {
-            Serial.println("Directory created: " + folderPath);
-            // Optionally create the first enumerated folder after the base folder
-            checkedPath = folderPath + "_1";
-            if (SD.mkdir(checkedPath.c_str()))
-            {
-                Serial.println("Enumerated directory created: " + checkedPath);
-            }
-            else
-            {
-                Serial.println("Failed to create enumerated directory: " + checkedPath);
-            }
-        }
-        else
-        {
-            Serial.println("Failed to create base directory: " + checkedPath);
-        }
+        Serial.println("Failed to create directory: " + newPath);
     }
-    return checkedPath;
+    return newPath;
 }
 
-// save uom data as csv file in SD card
+String createOrIncrementFolder(String folderPath)
+{
+    if (!ensureDirectoryExists(folderPath))
+    {
+        Serial.println("Base directory does not exist and could not be created.");
+        return "";
+    }
+    return incrementFolder(folderPath);
+}
+
 void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> &UOM_sensorData, int setup_tracker, int repeat_tracker, int channel_tracker, String exp_name)
 {
-
-    std::string macAddressTest = WiFi.macAddress().c_str();
-    // obtain date
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo))
     {
         Serial.println("Failed to obtain time");
         return;
     }
-    char today[11];                                                    // Buffer to hold the date string
-    strftime(today, sizeof(today), "%Y_%m_%d", &timeinfo);             // Format: YYYY-MM-DD
-    char currentTime[9];                                               // Buffer to hold the time string
-    strftime(currentTime, sizeof(currentTime), "%H_%M_%S", &timeinfo); // Format: HH:MM:SS
-    String folderPath = "/" + String(today) + "/" + exp_name;
+    char today[11];
+    strftime(today, sizeof(today), "%Y_%m_%d", &timeinfo);
+    char currentTime[9];
+    strftime(currentTime, sizeof(currentTime), "%H_%M_%S", &timeinfo);
 
-    String cPath = createOrIncrementFolder(folderPath);
+    String baseDir = "/" + String(today);
+    String expDir = baseDir + "/" + exp_name;
 
-    // Ensuring the folder exists or create if it does not
-    // if (!SD.exists(folderPath))
-    // {
-    //     if (!SD.mkdir(folderPath))
-    //     {
-    //         Serial.println("Failed to create today's directory");
-    //         return;
-    //     }
-    // }
-    String uniqueFilename = cPath + "/" + String(currentTime) + "s" + String(setup_tracker) + "c" + String(channel_tracker) + "r" + String(repeat_tracker) + ".csv";
-    // String uniqueFilename = folderPath + "/" + String(currentTime) + "s" + String(setup_tracker) + "c" + String(channel_tracker) + "r" + String(repeat_tracker) + ".csv";
+    if (!ensureDirectoryExists(baseDir) || !ensureDirectoryExists(expDir))
+    {
+        Serial.println("Failed to ensure directories exist.");
+        return;
+    }
+
+    // Check if setup_tracker has changed and update the directory if necessary
+    if (setup_tracker != last_setup_tracker)
+    {
+        currentPath = createOrIncrementFolder(expDir);
+        last_setup_tracker = setup_tracker; // Update the last known value of setup_tracker
+    }
+
+    String uniqueFilename = currentPath + "/" + String(currentTime) + "s" + String(setup_tracker) + "c" + String(channel_tracker) + "r" + String(repeat_tracker) + ".csv";
     const char *filename = uniqueFilename.c_str();
 
-    // Open the file in write mode
     File myFile = SD.open(filename, FILE_WRITE);
-
-    // Check if the file was opened successfully
     if (myFile)
     {
-        // Write the header row
         myFile.println("Setting,Data");
-
-        // Write the data
-        for (auto iter = UOM_sensorData.begin(); iter != UOM_sensorData.end(); ++iter)
+        for (auto &entry : UOM_sensorData)
         {
-            int setting = iter->first;                           // Extract the setting
-            const std::vector<uint32_t> &dataVec = iter->second; // Extract the vector of data
-
-            for (auto value : dataVec)
+            for (uint32_t value : entry.second)
             {
-                myFile.print(setting);
+                myFile.print(entry.first);
                 myFile.print(",");
                 myFile.println(value);
             }
         }
-
-        // Close the file
+        Serial.println("Data saved to file: " + String(filename));
         myFile.close();
     }
     else
@@ -473,6 +488,72 @@ void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> &UOM_sensorData,
     }
     UOM_sensorData.clear();
 }
+
+// // save uom data as csv file in SD card
+// void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> &UOM_sensorData, int setup_tracker, int repeat_tracker, int channel_tracker, String exp_name)
+// {
+//     // obtain date
+//     struct tm timeinfo;
+//     if (!getLocalTime(&timeinfo))
+//     {
+//         Serial.println("Failed to obtain time");
+//         return;
+//     }
+//     char today[11];                                                    // Buffer to hold the date string
+//     strftime(today, sizeof(today), "%Y_%m_%d", &timeinfo);             // Format: YYYY-MM-DD
+//     char currentTime[9];                                               // Buffer to hold the time string
+//     strftime(currentTime, sizeof(currentTime), "%H_%M_%S", &timeinfo); // Format: HH:MM:SS
+
+//     String folderPath = "/" + String(today) + "/" + exp_name;
+//     Serial.println("Folder Path:" + folderPath);
+
+//     // String cPath = createOrIncrementFolder(folderPath);
+
+//     // Ensuring the folder exists or create if it does not
+//     if (!SD.exists(folderPath))
+//     {
+//         if (!SD.mkdir(folderPath))
+//         {
+//             Serial.println("Failed to create today's directory");
+//             return;
+//         }
+//     }
+//     String uniqueFilename = /*cPath*/ folderPath + "/" + String(currentTime) + "s" + String(setup_tracker) + "c" + String(channel_tracker) + "r" + String(repeat_tracker) + ".csv";
+//     // String uniqueFilename = folderPath + "/" + String(currentTime) + "s" + String(setup_tracker) + "c" + String(channel_tracker) + "r" + String(repeat_tracker) + ".csv";
+//     const char *filename = uniqueFilename.c_str();
+
+//     // Open the file in write mode
+//     File myFile = SD.open(filename, FILE_WRITE);
+
+//     // Check if the file was opened successfully
+//     if (myFile)
+//     {
+//         // Write the header row
+//         myFile.println("Setting,Data");
+
+//         // Write the data
+//         for (auto iter = UOM_sensorData.begin(); iter != UOM_sensorData.end(); ++iter)
+//         {
+//             int setting = iter->first;                           // Extract the setting
+//             const std::vector<uint32_t> &dataVec = iter->second; // Extract the vector of data
+
+//             for (auto value : dataVec)
+//             {
+//                 myFile.print(setting);
+//                 myFile.print(",");
+//                 myFile.println(value);
+//             }
+//         }
+
+//         // Close the file
+//         myFile.close();
+//     }
+//     else
+//     {
+//         Serial.println("Error opening file for writing");
+//     }
+//     UOM_sensorData.clear();
+// }
 
 int UOM_sensor(std::unordered_map<int, std::vector<uint32_t>> &UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
 {
@@ -518,7 +599,7 @@ void sample_start(void *pvParameters)
             saveUOMData(UOM_sensorData, setup_tracker, repeat_tracker, channel_tracker, exp_name);
             mutexEdit(EXP_READY);
         }
-        // vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 
