@@ -15,6 +15,19 @@
 
 #include <unordered_map>
 #include <WiFi.h>
+
+int heatingTime;
+std::vector<int> heaterSettings;
+std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> UOM_sensorData;
+
+int last_setup_tracker = -1;
+int setup_tracker = 0;
+int repeat_tracker = 0;
+int channel_tracker = 0;
+unsigned long startTime = 0;
+String exp_name = "";
+String currentPath = "";
+
 TaskHandle_t sampleTaskHandle;
 Adafruit_BME680 bme;             // I2C
 SemaphoreHandle_t expStateMutex; // Declare a mutex
@@ -42,7 +55,7 @@ void mutexEdit(ExpState state)
     // Take the mutex, waiting indefinitely for it to become available
     xSemaphoreTake(expStateMutex, portMAX_DELAY);
     expState = state;
-    Serial.println("Setting expState to state:" + String(expState));
+    // Serial.println("Setting expState to state:" + String(expState));
     // Give the mutex back
     xSemaphoreGive(expStateMutex);
 }
@@ -151,14 +164,6 @@ int count_setup(String jsonString)
     return setupCount;
 }
 
-int last_setup_tracker = -1;
-int setup_tracker = 0;
-int repeat_tracker = 0;
-int channel_tracker = 0;
-unsigned long startTime = 0;
-String exp_name = "";
-String currentPath = "";
-
 void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
 {
     sampleTask();
@@ -166,16 +171,25 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
     Serial.println("State = EXP_WARMING_UP" + String(expState));
     std::vector<uint8_t> pump_on = switchCommand(1, 47, 1);
     Serial2.write(pump_on.data(), pump_on.size());
-    Serial.println("Pump command: ");
-    for (uint8_t i : pump_on)
-    {
-        Serial.print(i);
-    }
+    // Serial.println("Pump command: ");
+    // for (uint8_t i : pump_on)
+    // {
+    //     Serial.print(i);
+    // }
 
     for (int i = 1; i <= setup_count; i++)
     {
         setup_tracker = i;
         exp_name = getExpName(config, i, "/exp_name");
+        heaterSettings = getArr(config, i, "/heater_settings");
+        Serial.println("Heater settings: ");
+        for (int i : heaterSettings)
+        {
+            Serial.print(i);
+            Serial.print(",");
+        }
+        heatingTime = getInt(config, i, "/heating_time(ms)");
+        Serial.println("Heating time: " + String(heatingTime));
         int duration = getInt(config, i, "/duration(s)");
         duration = duration * 1000;
         int repeat = getInt(config, i, "/repeat");
@@ -191,7 +205,7 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
         Serial.println("State = EXP_READY" + String(expState));
 
         // for each channel in the array, run the experiment
-        Serial.println("Running experiment for setup: " + String(i));
+        // Serial.println("Running experiment for setup: " + String(i));
         for (int j = 0; j < repeat; j++)
         {
             repeat_tracker = j;
@@ -231,7 +245,7 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
                 // {
                 //     Serial.print(i);
                 // }
-                Serial.println("");
+                // Serial.println("");
                 Serial.println("Turning off channel: " + String(cur_channel));
                 Serial2.write(off_command.data(), off_command.size());
                 delay(exp_time);
@@ -323,10 +337,6 @@ void M5_SD_JSON(const char *filename, String &configData)
                                                     // 如果文件没有打开
     }
 }
-
-int heatingTime = 5;
-std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> UOM_sensorData;
-std::vector<int> heaterSettings = {150, 200, 250, 300, 350, 400, 450, 500};
 
 void displayMap(std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> UOM_sensorData)
 {
@@ -470,31 +480,6 @@ void saveUOMData(std::unordered_map<int, std::vector<std::pair<unsigned long, ui
     }
     UOM_sensorData.clear();
 }
-
-// int UOM_sensor(std::unordered_map<int, std::vector<uint32_t>> &UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
-// {
-//     if (!bme.begin())
-//     {
-//         Serial.println("Could not find a valid BME680 sensor, check wiring!");
-//         while (1)
-//             ;
-//     }
-//     for (int setting : heaterSettings)
-//     {
-//         Serial.print(".");
-//         bme.setGasHeater(setting, heatingTime);
-//         if (bme.performReading())
-//         {
-//             UOM_sensorData[setting].push_back(bme.gas_resistance);
-//         }
-//         else
-//         {
-//             Serial.println("Failed to perform reading.");
-//         }
-//     }
-
-//     return 0;
-// }
 
 int UOM_sensor(std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> &UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
 {
