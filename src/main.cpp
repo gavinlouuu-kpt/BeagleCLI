@@ -99,7 +99,7 @@ void setup()
   cmdSetup();
   networkCheck();
 
-  sampleTask();
+  // sampleTask();
   // M5_example();
   // const char *filename = "/expSetup.json";
   // String configData;
