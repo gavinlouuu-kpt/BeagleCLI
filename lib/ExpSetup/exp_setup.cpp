@@ -16,11 +16,8 @@
 #include <unordered_map>
 #include <WiFi.h>
 
-Adafruit_BME680 bme; // I2C
-
-// Declare a mutex
-SemaphoreHandle_t expStateMutex;
-
+Adafruit_BME680 bme;             // I2C
+SemaphoreHandle_t expStateMutex; // Declare a mutex
 enum ExpState
 {
     EXP_IDLE,
@@ -365,30 +362,6 @@ bool ensureDirectoryExists(String path)
     return true;
 }
 
-// String incrementFolder(String folderPath)
-// {
-//     int underscoreIndex = folderPath.lastIndexOf('_');
-//     int lastNumber = 0;
-//     if (underscoreIndex != -1 && underscoreIndex < folderPath.length() - 1)
-//     {
-//         lastNumber = folderPath.substring(underscoreIndex + 1).toInt();
-//     }
-//     String newPath;
-//     do
-//     {
-//         newPath = folderPath.substring(0, underscoreIndex) + "_" + (++lastNumber);
-//     } while (SD.exists(newPath));
-//     if (SD.mkdir(newPath.c_str()))
-//     {
-//         Serial.println("New directory created: " + newPath);
-//     }
-//     else
-//     {
-//         Serial.println("Failed to create directory: " + newPath);
-//     }
-//     return newPath;
-// }
-
 String incrementFolder(String folderPath)
 {
     int underscoreIndex = folderPath.lastIndexOf('_');
@@ -488,72 +461,6 @@ void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> &UOM_sensorData,
     }
     UOM_sensorData.clear();
 }
-
-// // save uom data as csv file in SD card
-// void saveUOMData(std::unordered_map<int, std::vector<uint32_t>> &UOM_sensorData, int setup_tracker, int repeat_tracker, int channel_tracker, String exp_name)
-// {
-//     // obtain date
-//     struct tm timeinfo;
-//     if (!getLocalTime(&timeinfo))
-//     {
-//         Serial.println("Failed to obtain time");
-//         return;
-//     }
-//     char today[11];                                                    // Buffer to hold the date string
-//     strftime(today, sizeof(today), "%Y_%m_%d", &timeinfo);             // Format: YYYY-MM-DD
-//     char currentTime[9];                                               // Buffer to hold the time string
-//     strftime(currentTime, sizeof(currentTime), "%H_%M_%S", &timeinfo); // Format: HH:MM:SS
-
-//     String folderPath = "/" + String(today) + "/" + exp_name;
-//     Serial.println("Folder Path:" + folderPath);
-
-//     // String cPath = createOrIncrementFolder(folderPath);
-
-//     // Ensuring the folder exists or create if it does not
-//     if (!SD.exists(folderPath))
-//     {
-//         if (!SD.mkdir(folderPath))
-//         {
-//             Serial.println("Failed to create today's directory");
-//             return;
-//         }
-//     }
-//     String uniqueFilename = /*cPath*/ folderPath + "/" + String(currentTime) + "s" + String(setup_tracker) + "c" + String(channel_tracker) + "r" + String(repeat_tracker) + ".csv";
-//     // String uniqueFilename = folderPath + "/" + String(currentTime) + "s" + String(setup_tracker) + "c" + String(channel_tracker) + "r" + String(repeat_tracker) + ".csv";
-//     const char *filename = uniqueFilename.c_str();
-
-//     // Open the file in write mode
-//     File myFile = SD.open(filename, FILE_WRITE);
-
-//     // Check if the file was opened successfully
-//     if (myFile)
-//     {
-//         // Write the header row
-//         myFile.println("Setting,Data");
-
-//         // Write the data
-//         for (auto iter = UOM_sensorData.begin(); iter != UOM_sensorData.end(); ++iter)
-//         {
-//             int setting = iter->first;                           // Extract the setting
-//             const std::vector<uint32_t> &dataVec = iter->second; // Extract the vector of data
-
-//             for (auto value : dataVec)
-//             {
-//                 myFile.print(setting);
-//                 myFile.print(",");
-//                 myFile.println(value);
-//             }
-//         }
-
-//         // Close the file
-//         myFile.close();
-//     }
-//     else
-//     {
-//         Serial.println("Error opening file for writing");
-//     }
-//     UOM_sensorData.clear();
-// }
 
 int UOM_sensor(std::unordered_map<int, std::vector<uint32_t>> &UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
 {
