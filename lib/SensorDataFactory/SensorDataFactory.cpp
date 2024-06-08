@@ -41,7 +41,7 @@ void killDatastreamTaskDirectly()
     if (datastreamTaskHandle != NULL)
     {
         vTaskDelete(datastreamTaskHandle);
-        ledcWrite(PumpPWM, 0);       // turn off pump
+        // ledcWrite(PumpPWM, 0);       // turn off pump
         datastreamTaskHandle = NULL; // Invalidate the handle to prevent reuse
         Serial.println("datastreamTask killed successfully.");
     }
@@ -72,7 +72,7 @@ void SensorDataFactory::preSampling()
 {
     // warmingInProgress = true;
     Serial.println(pumpSpeed);
-    ledcWrite(PumpPWM, pumpSpeed); // turn on pump
+    // ledcWrite(PumpPWM, pumpSpeed); // turn on pump
     // if (!bme_begin()) {
     //     Serial.println("Failed to initialize BME680 sensor.");
     //     return;

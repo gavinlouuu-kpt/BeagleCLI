@@ -577,6 +577,11 @@ void BMEsampleTask()
         &bmeTaskHandle); /* Task handle. */
 }
 
+void ads_heaterSettings(std::vector<int> settings)
+{
+    heaterSettings = settings;
+}
+
 int UOM_sensorADS(std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> &UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
 {
     if (!ads.begin(ADSi2c))
@@ -591,6 +596,7 @@ int UOM_sensorADS(std::unordered_map<int, std::vector<std::pair<unsigned long, u
         // bme.setGasHeater(setting, heatingTime);
         // if (bme.performReading())
         // {
+        delay(heatingTime);
         unsigned long timestamp = millis() - startTime;
         UOM_sensorData[setting].push_back(std::make_pair(timestamp, ads.readADC_SingleEnded(0)));
         // }
