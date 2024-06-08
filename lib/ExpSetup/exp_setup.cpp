@@ -12,6 +12,7 @@
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME680.h>
+#include <Adafruit_ADS1X15.h>
 
 #include <unordered_map>
 #include <WiFi.h>
@@ -20,6 +21,7 @@ int heatingTime;
 std::vector<int> heaterSettings;
 std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> UOM_sensorData;
 
+uint8_t ADSi2c = 0x49;
 int last_setup_tracker = -1;
 int setup_tracker = 0;
 int repeat_tracker = 0;
@@ -28,8 +30,10 @@ unsigned long startTime = 0;
 String exp_name = "";
 String currentPath = "";
 
-TaskHandle_t sampleTaskHandle;
-Adafruit_BME680 bme;             // I2C
+TaskHandle_t bmeTaskHandle, adsTaskHandle;
+Adafruit_BME680 bme; // I2C
+Adafruit_ADS1115 ads;
+
 SemaphoreHandle_t expStateMutex; // Declare a mutex
 enum ExpState
 {
@@ -146,9 +150,9 @@ int count_setup(String jsonString)
     size_t setupCount = 0;
     FirebaseJson json;
     FirebaseJsonData jsonData;
-    Serial.println(jsonString);
+    // Serial.println(jsonString);
     json.setJsonData(jsonString);
-    Serial.println("Counting Setups");
+    // Serial.println("Counting Setups");
 
     // Assuming setups are named 'setup_1', 'setup_2', ..., 'setup_n'
     for (int i = 1; i <= 10; i++)
@@ -164,9 +168,34 @@ int count_setup(String jsonString)
     return setupCount;
 }
 
+int sensorCheck()
+{
+    if (!bme.begin())
+    {
+        Serial.println("BME680 sensor not found!");
+    }
+    if (!bme.begin() && !ads.begin(ADSi2c))
+    {
+        Serial.println("No sensor found!");
+        return 0;
+    }
+    if (bme.begin())
+    {
+        Serial.println("BME680 sensor found!");
+        BMEsampleTask();
+        return 1;
+    }
+    else if (ads.begin(ADSi2c))
+    {
+        Serial.println("ADS1115 sensor found!");
+        ADSsampleTask();
+        return 2;
+    }
+}
+
 void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
 {
-    sampleTask();
+    int sensorType = sensorCheck();
     mutexEdit(EXP_WARMING_UP);
     Serial.println("State = EXP_WARMING_UP" + String(expState));
     std::vector<uint8_t> pump_on = switchCommand(1, 47, 1);
@@ -260,7 +289,14 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
             }
         }
     }
-    vTaskDelete(sampleTaskHandle);
+    if (sensorType == 1)
+    {
+        vTaskDelete(bmeTaskHandle);
+    }
+    else if (sensorType == 2)
+    {
+        vTaskDelete(adsTaskHandle);
+    }
     std::vector<uint8_t> pump_off = switchCommand(1, 47, 0);
     Serial2.write(pump_off.data(), pump_off.size());
     // Serial.println("Pump off command: ");
@@ -283,7 +319,7 @@ void exp_build()
     FirebaseJson json;
     json.setJsonData(configData);
     int setupCount = count_setup(configData);
-    Serial.println("Number of setups: " + String(setupCount));
+    // Serial.println("Number of setups: " + String(setupCount));
     exp_loop(json, setupCount);
 }
 
@@ -327,8 +363,8 @@ void M5_SD_JSON(const char *filename, String &configData)
             configData += char(myFile.read());
             // DO NOT TURN ON BOTH AT THE SAME TIME
         }
-        Serial.println("SD Config data: ");
-        Serial.println(configData);
+        // Serial.println("SD Config data: ");
+        // Serial.println(configData);
         myFile.close();
     }
     else
@@ -481,7 +517,7 @@ void saveUOMData(std::unordered_map<int, std::vector<std::pair<unsigned long, ui
     UOM_sensorData.clear();
 }
 
-int UOM_sensor(std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> &UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
+int UOM_sensorBME(std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> &UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
 {
     if (!bme.begin())
     {
@@ -507,7 +543,7 @@ int UOM_sensor(std::unordered_map<int, std::vector<std::pair<unsigned long, uint
     return 0;
 }
 
-void sample_start(void *pvParameters)
+void sampleBME(void *pvParameters)
 {
     for (;;)
     {
@@ -517,7 +553,7 @@ void sample_start(void *pvParameters)
         if (currentState == EXP_DAQ) // EXP_DAQ)
         {
 
-            UOM_sensor(UOM_sensorData, heaterSettings, heatingTime);
+            UOM_sensorBME(UOM_sensorData, heaterSettings, heatingTime);
         }
         else if (currentState == EXP_SAVE)
         {
@@ -530,15 +566,90 @@ void sample_start(void *pvParameters)
     }
 }
 
-void sampleTask()
+void BMEsampleTask()
 {
     xTaskCreate(
-        sample_start,       /* Task function. */
-        "sample_start",     /* String with name of task. */
-        10240,              /* Stack size in bytes. */
-        NULL,               /* Parameter passed as input of the task */
-        1,                  /* Priority of the task. */
-        &sampleTaskHandle); /* Task handle. */
+        sampleBME,       /* Task function. */
+        "bme_start",     /* String with name of task. */
+        10240,           /* Stack size in bytes. */
+        NULL,            /* Parameter passed as input of the task */
+        1,               /* Priority of the task. */
+        &bmeTaskHandle); /* Task handle. */
+}
+
+int UOM_sensorADS(std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> &UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
+{
+    if (!ads.begin(ADSi2c))
+    {
+        Serial.println("Could not find a valid ADS1115, check wiring!");
+        while (1)
+            ;
+    }
+    for (int setting : heaterSettings)
+    {
+        Serial.print("+");
+        // bme.setGasHeater(setting, heatingTime);
+        // if (bme.performReading())
+        // {
+        unsigned long timestamp = millis() - startTime;
+        UOM_sensorData[setting].push_back(std::make_pair(timestamp, ads.readADC_SingleEnded(0)));
+        // }
+        // else
+        // {
+        // Serial.println("Failed to perform reading.");
+        // }
+    }
+
+    return 0;
+}
+
+void sampleADS(void *pvParameters)
+{
+    for (;;)
+    {
+        // uomTest();
+        int currentState = getExpState();
+        // Serial.print("-");
+        if (currentState == EXP_DAQ) // EXP_DAQ)
+        {
+
+            UOM_sensorADS(UOM_sensorData, heaterSettings, heatingTime);
+        }
+        else if (currentState == EXP_SAVE)
+        {
+            // Serial.print("+");
+            // displayMap(UOM_sensorData);
+            saveUOMData(UOM_sensorData, setup_tracker, repeat_tracker, channel_tracker, exp_name);
+            mutexEdit(EXP_READY);
+        }
+        // vTaskDelay(pdMS_TO_TICKS(1));
+    }
+}
+
+void ADSsampleTask()
+{
+    xTaskCreate(
+        sampleADS,       /* Task function. */
+        "ads_start",     /* String with name of task. */
+        10240,           /* Stack size in bytes. */
+        NULL,            /* Parameter passed as input of the task */
+        1,               /* Priority of the task. */
+        &adsTaskHandle); /* Task handle. */
+}
+
+void ADStest()
+{
+    if (!ads.begin(ADSi2c))
+    {
+        Serial.println("Could not find a valid ADS1115, check wiring!");
+        while (1)
+            ;
+    }
+    for (int i = 0; i < 10; i++)
+    {
+        Serial.println(ads.readADC_SingleEnded(0));
+        delay(1000);
+    }
 }
 
 void expDAQ()
@@ -566,7 +677,7 @@ void readConfigCMD()
     commandMap["start"] = []()
     { expTask(); };
     commandMap["sample"] = []()
-    { sampleTask(); };
+    { BMEsampleTask(); };
     commandMap["expDAQ"] = []()
     { expDAQ(); };
     commandMap["expIDLE"] = []()
@@ -575,4 +686,6 @@ void readConfigCMD()
     { expSAVE(); };
     commandMap["checkState"] = []()
     { checkState(); };
+    commandMap["ADStest"] = []()
+    { ADStest(); };
 }
