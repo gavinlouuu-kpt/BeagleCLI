@@ -688,13 +688,13 @@ void sampleADS(void *pvParameters)
         if (currentState == EXP_DAQ) // EXP_DAQ)
         {
 
-            UOM_sensorADS(UOM_sensorData, heaterSettings, heatingTime);
+            UOM_sensorADS(ADS_sensorData, heaterSettings, heatingTime);
         }
         else if (currentState == EXP_SAVE)
         {
             // Serial.print("+");
             // displayMap(UOM_sensorData);
-            saveUOMData(UOM_sensorData, setup_tracker, repeat_tracker, channel_tracker, exp_name);
+            saveADSData(ADS_sensorData, setup_tracker, repeat_tracker, channel_tracker, exp_name);
             mutexEdit(EXP_READY);
         }
         // vTaskDelay(pdMS_TO_TICKS(1));
