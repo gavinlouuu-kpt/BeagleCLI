@@ -9,6 +9,7 @@
 #include <string>
 #include <M5Stack.h>
 #include <Arduino.h>
+#include <pinConfig.h>
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME680.h>
@@ -20,6 +21,7 @@
 int heatingTime;
 std::vector<int> heaterSettings;
 std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> UOM_sensorData;
+std::unordered_map<int, std::vector<std::pair<unsigned long, std::array<uint32_t, 4>>>> ADS_sensorData;
 
 uint8_t ADSi2c = 0x48;
 int last_setup_tracker = -1;
@@ -517,6 +519,72 @@ void saveUOMData(std::unordered_map<int, std::vector<std::pair<unsigned long, ui
     UOM_sensorData.clear();
 }
 
+void saveADSData(std::unordered_map<int, std::vector<std::pair<unsigned long, std::array<uint32_t, 4>>>> &ADS_sensorData, int setup_tracker, int repeat_tracker, int channel_tracker, String exp_name)
+{
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo))
+    {
+        Serial.println("Failed to obtain time");
+        return;
+    }
+    char today[11];
+    strftime(today, sizeof(today), "%Y_%m_%d", &timeinfo);
+    char currentTime[9];
+    strftime(currentTime, sizeof(currentTime), "%H_%M_%S", &timeinfo);
+
+    String baseDir = "/" + String(today);
+    String expDir = baseDir + "/" + exp_name;
+
+    if (!ensureDirectoryExists(baseDir) || !ensureDirectoryExists(expDir))
+    {
+        Serial.println("Failed to ensure directories exist.");
+        return;
+    }
+
+    // Check if setup_tracker has changed and update the directory if necessary
+    if (setup_tracker != last_setup_tracker)
+    {
+        currentPath = createOrIncrementFolder(expDir);
+        last_setup_tracker = setup_tracker; // Update the last known value of setup_tracker
+    }
+
+    String uniqueFilename = currentPath + "/" + String(currentTime) + "s" + String(setup_tracker) + "c" + String(channel_tracker) + "r" + String(repeat_tracker) + ".csv";
+    const char *filename = uniqueFilename.c_str();
+
+    File myFile = SD.open(filename, FILE_WRITE);
+    if (myFile)
+    {
+        myFile.println("Setting,Timestamp,Channel_0,Channel_1,Channel_2,Channel_3");
+        for (auto &entry : ADS_sensorData)
+        {
+            int setting = entry.first;
+            for (auto &data : entry.second)
+            {
+                unsigned long timestamp = data.first; // Extract timestamp
+                auto &dataArray = data.second;        // Extract gas resistance
+
+                myFile.print(setting);
+                myFile.print(",");
+                myFile.print(timestamp);
+                myFile.print(",");
+                for (uint32_t value : dataArray)
+                {
+                    myFile.print(value);
+                    myFile.print(",");
+                }
+                myFile.println();
+            }
+        }
+        Serial.println("Data saved to file: " + String(filename));
+        myFile.close();
+    }
+    else
+    {
+        Serial.println("Error opening file for writing");
+    }
+    UOM_sensorData.clear();
+}
+
 int UOM_sensorBME(std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> &UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
 {
     if (!bme.begin())
@@ -582,7 +650,7 @@ void ads_heaterSettings(std::vector<int> settings)
     heaterSettings = settings;
 }
 
-int UOM_sensorADS(std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> &UOM_sensorData, std::vector<int> heaterSettings, int heatingTime)
+int UOM_sensorADS(std::unordered_map<int, std::vector<std::pair<unsigned long, std::array<uint32_t, 4>>>> &ADS_sensorData, std::vector<int> heaterSettings, int heatingTime)
 {
     if (!ads.begin(ADSi2c))
     {
@@ -593,12 +661,13 @@ int UOM_sensorADS(std::unordered_map<int, std::vector<std::pair<unsigned long, u
     for (int setting : heaterSettings)
     {
         Serial.print("+");
-        // bme.setGasHeater(setting, heatingTime);
+        ledcWrite(PWM_Heater, setting);
         // if (bme.performReading())
         // {
         delay(heatingTime);
         unsigned long timestamp = millis() - startTime;
-        UOM_sensorData[setting].push_back(std::make_pair(timestamp, ads.readADC_SingleEnded(0)));
+        std::array<uint32_t, 4> ADSreadings = {ads.readADC_SingleEnded(0), ads.readADC_SingleEnded(1), ads.readADC_SingleEnded(2), ads.readADC_SingleEnded(3)};
+        ADS_sensorData[setting].push_back(std::make_pair(timestamp, ADSreadings));
         // }
         // else
         // {
