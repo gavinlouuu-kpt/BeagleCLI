@@ -21,7 +21,7 @@ int heatingTime;
 std::vector<int> heaterSettings;
 std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> UOM_sensorData;
 
-uint8_t ADSi2c = 0x49;
+uint8_t ADSi2c = 0x48;
 int last_setup_tracker = -1;
 int setup_tracker = 0;
 int repeat_tracker = 0;

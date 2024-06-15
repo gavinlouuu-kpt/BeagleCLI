@@ -1,12 +1,17 @@
 #ifndef PINCONFIG_H
 #define PINCONFIG_H
 
+const int U2_RX = 16;
+const int U2_TX = 17;
+const int PWM_Heater = 23;
+const int PWM_Vin = 25;
+
 // const int ADS_RDY = 39; // ADS1115 ready pin at SENSOR_VN
 // const int BAT = 34; // Read battery voltage
 // const int C_SDA = 32; // I2C data
 // const int C_SCL = 33; // I2C clock
 // const int VBAT = 25; // High to enable battery voltage measurement
-// const int PA_1 = 26; // Pump at AIN1 (PWM) 3V to H1 
+// const int PA_1 = 26; // Pump at AIN1 (PWM) 3V to H1
 // const int HB_1 = 27; // Heater at BIN1 (PWM) 5V to H4
 // const int V1_8 = 14; // 1.8V enable for gas sensor heater
 // const int SOL = 23; // Solenoid valve
