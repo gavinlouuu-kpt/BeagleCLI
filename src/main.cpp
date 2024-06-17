@@ -14,7 +14,8 @@
 #include <Network.h>
 // #include <SPI.h>
 #include <Firebase_ESP_Client.h>
-#include <M5Stack.h>
+#include <M5CoreS3.h>
+// #include <M5Unified.h>
 #include <exp_setup.h>
 
 // #include <SensorData.h>
@@ -26,7 +27,7 @@ void setup()
 
   Serial.begin(115200);
   Serial2.begin(38400, SERIAL_8N1, U2_RX, U2_TX);
-  M5.begin(1, 1, 1, 1);
+  M5.begin();
   //  the setups are not not needed now
   pinSetup(); // something in pin setup is causing sd card to not initialize properly
   pwmSetup(); // something in pwm setup is causing sd card to not initialize properly

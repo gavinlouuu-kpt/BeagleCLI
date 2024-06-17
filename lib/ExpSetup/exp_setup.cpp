@@ -7,7 +7,11 @@
 #include <vector>
 #include <sstream>
 #include <string>
-#include <M5Stack.h>
+// #include <M5Stack.h>
+#include <M5CoreS3.h>
+#include <SD.h>
+// #include <M5Unified.h>
+
 #include <Arduino.h>
 #include <pinConfig.h>
 

@@ -5,14 +5,16 @@
     @brief  Prints sensor information to serial console
 */
 /**************************************************************************/
-void Adafruit_Sensor::printSensorDetails(void) {
-  sensor_t sensor;
+void Adafruit_Sensor::printSensorDetails(void)
+{
+  adafruit_sensor_t sensor;
   getSensor(&sensor);
   Serial.println(F("------------------------------------"));
   Serial.print(F("Sensor:       "));
   Serial.println(sensor.name);
   Serial.print(F("Type:         "));
-  switch ((sensors_type_t)sensor.type) {
+  switch ((sensors_type_t)sensor.type)
+  {
   case SENSOR_TYPE_ACCELEROMETER:
     Serial.print(F("Acceleration (m/s2)"));
     break;
