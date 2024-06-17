@@ -202,6 +202,7 @@ void exp_loop(FirebaseJson config, int setup_count, int exp_time = 10000)
     Serial.println("State = EXP_WARMING_UP" + String(expState));
     std::vector<uint8_t> pump_on = switchCommand(1, 47, 1);
     Serial2.write(pump_on.data(), pump_on.size());
+    ledcWrite(PWM_Vin, 255);
     // Serial.println("Pump command: ");
     // for (uint8_t i : pump_on)
     // {
@@ -747,6 +748,37 @@ void checkState()
     Serial.println("Current state: " + String(expState));
 }
 
+void ads_pwm_test()
+{
+    ads.begin(ADSi2c);
+    for (int i = 0; i < 256; i = i + 10)
+    {
+        ledcWrite(PWM_V_CH, i);
+        ledcWrite(PWM_H_CH, i);
+        unsigned long time = millis();
+        while (millis() - time < 5000)
+        {
+            Serial.print("PWM Heater: ");
+            Serial.print(i);
+            Serial.print(",");
+            Serial.print("time: ");
+            Serial.print(millis() - time);
+            Serial.print(",");
+            Serial.print(" Channel 0: ");
+            Serial.print(ads.readADC_SingleEnded(0));
+            Serial.print(",");
+            Serial.print(" Channel 1: ");
+            Serial.print(ads.readADC_SingleEnded(1));
+            Serial.print(",");
+            Serial.print(" Channel 2: ");
+            Serial.print(ads.readADC_SingleEnded(2));
+            Serial.print(",");
+            Serial.print(" Channel 3: ");
+            Serial.println(ads.readADC_SingleEnded(3));
+        }
+    }
+}
+
 void readConfigCMD()
 {
     commandMap["start"] = []()
@@ -761,6 +793,6 @@ void readConfigCMD()
     { expSAVE(); };
     commandMap["checkState"] = []()
     { checkState(); };
-    commandMap["ADStest"] = []()
-    { ADStest(); };
+    commandMap["adsPWM"] = []()
+    { ads_pwm_test(); };
 }

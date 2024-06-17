@@ -3,8 +3,9 @@
 
 const int U2_RX = 16;
 const int U2_TX = 17;
-const int PWM_Heater = 23;
-const int PWM_Vin = 25;
+// use of pin 23 with pinMode declaration causes sd card to not initialize properly
+const int PWM_Heater = 15;
+const int PWM_Vin = 12;
 
 // const int ADS_RDY = 39; // ADS1115 ready pin at SENSOR_VN
 // const int BAT = 34; // Read battery voltage
@@ -24,12 +25,12 @@ const int PWM_Vin = 25;
 // const int LCD_RST = 2; // LCD reset
 // const int TCH_CS = 15; // Touch chip select
 
-// const int PumpPWM = 0; // PWM channel for pump
-// const int HeaterPWM = 1; // PWM channel for heater
+const int PWM_H_CH = 15; // PWM channel for pump
+const int PWM_V_CH = 12; // PWM channel for heater
 // const int SolenoidPWM = 2; // PWM channel for solenoid valve
-// const int PumpFREQ = 20000;
-// const int HeaterFREQ = 20000;
+const int HFREQ = 10000;
+const int VFREQ = 10000;
 // const int SolenoidFREQ = 20000;
-// const int pwmRES = 8;
+const int pwmRES = 8;
 
 #endif // PINCONFIG_H

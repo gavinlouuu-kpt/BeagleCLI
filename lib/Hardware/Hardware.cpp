@@ -13,6 +13,9 @@
 
 void pinSetup()
 {
+    pinMode(PWM_Heater, OUTPUT);
+    pinMode(PWM_Vin, OUTPUT);
+
     // pinMode(BAT, INPUT); //read battery voltage
     // pinMode(VBAT, OUTPUT); //enable to read battery voltage
     // pinMode(PA_1, OUTPUT); //pump at AIN1 (PWM) 3V to H1
@@ -23,12 +26,11 @@ void pinSetup()
 
 void pwmSetup()
 {
-    // ledcSetup(PumpPWM, PumpFREQ, pwmRES);
-    // ledcAttachPin(PA_1, PumpPWM);
-    // ledcSetup(HeaterPWM, HeaterFREQ, pwmRES);
-    // ledcAttachPin(HB_1, HeaterPWM);
-    // ledcSetup(SolenoidPWM, SolenoidFREQ, pwmRES);
-    // ledcAttachPin(SOL, SolenoidPWM);
+    ledcSetup(PWM_H_CH, HFREQ, pwmRES);
+    ledcAttachPin(PWM_Heater, PWM_H_CH);
+    delay(100);
+    ledcSetup(PWM_V_CH, VFREQ, pwmRES);
+    ledcAttachPin(PWM_Vin, PWM_V_CH);
 }
 
 void pumpON()

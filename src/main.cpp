@@ -29,7 +29,10 @@ void setup()
   M5.begin(1, 1, 1, 1);
   //  the setups are not not needed now
   pinSetup(); // something in pin setup is causing sd card to not initialize properly
+  // delay(100);
+
   pwmSetup(); // something in pwm setup is causing sd card to not initialize properly
+  // delay(100);
 
   expMutexSetup();
 
