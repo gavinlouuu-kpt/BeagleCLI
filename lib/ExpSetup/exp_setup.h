@@ -13,6 +13,7 @@ void M5_SD_JSON(const char *filename, String &configData);
 void BMEsampleTask();
 void ADSsampleTask();
 void expMutexSetup();
+int sensorCheck();
 // class SensorData
 // {
 // private:

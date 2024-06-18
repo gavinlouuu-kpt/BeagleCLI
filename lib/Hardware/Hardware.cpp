@@ -6,22 +6,39 @@
 #include <map>
 #include <functional>
 #include <beagleCLI.h>
+#include <M5Stack.h>
+#include <exp_setup.h>
 
 // std::map<String, std::function<void()>> commandMap;
 // using CommandHandler = std::function<void(int)>;
 // std::map<String, CommandHandler> commandHandlers;
 
+void hardwareCheckTask(void *pvParameters)
+{
+    // check sd and sensor before starting other functions
+    // if sd and sensors are not working, then the system is not ready
+    // suspend all other functions
+
+    // if (!SD.begin())
+    // {
+    //     Serial.println("SD card failed, or not present");
+    //     vTaskDelay(5000);
+    //     ESP.restart();
+    //     // pause all device functions
+    // }
+    // if (sensorCheck() = 0)
+    // {
+    //     Serial.println("Sensor failed, or not present");
+    //     ESP.restart();
+    //     // pause all device functions
+    // }
+    // vTaskDelay(1000);
+}
+
 void pinSetup()
 {
     pinMode(PWM_Heater, OUTPUT);
     pinMode(PWM_Vin, OUTPUT);
-
-    // pinMode(BAT, INPUT); //read battery voltage
-    // pinMode(VBAT, OUTPUT); //enable to read battery voltage
-    // pinMode(PA_1, OUTPUT); //pump at AIN1 (PWM) 3V to H1
-    // pinMode(HB_1, OUTPUT); //heater at BIN1 (PWM) 5V to H4
-    // pinMode(V1_8, OUTPUT); //1.8V enable for gas sensor heater
-    // pinMode(SOL, OUTPUT); //solenoid valve
 }
 
 void pwmSetup()
@@ -31,21 +48,6 @@ void pwmSetup()
     delay(100);
     ledcSetup(PWM_V_CH, VFREQ, pwmRES);
     ledcAttachPin(PWM_Vin, PWM_V_CH);
-}
-
-void pumpON()
-{
-    // ledcWrite(PumpPWM, pumpSpeed);
-}
-
-void pumpOFF()
-{
-    // ledcWrite(PumpPWM, 0);
-}
-
-void solenoidON()
-{
-    // ledcWrite(SolenoidPWM, 255);
 }
 
 void solenoidOFF()
@@ -62,12 +64,7 @@ void setPumpSpeed(int speed)
 
 void hardwareCMD()
 {
-    commandMap["pumpON"] = []()
-    { pumpON(); };
-    commandMap["pumpOFF"] = []()
-    { pumpOFF(); };
-    commandMap["solenoidON"] = []()
-    { solenoidON(); };
+
     commandMap["solenoidOFF"] = []()
     { solenoidOFF(); };
     commandHandlers["setPumpSpeed"] = [](int speed)
