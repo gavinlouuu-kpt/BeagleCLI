@@ -37,6 +37,12 @@ void setup()
   expMutexSetup();
 
   cmdSetup();
+  if (!SD.exists("/wifiCredentials.json"))
+  {
+    Serial.println("wifiCredentials.json does not exist");
+    return;
+  }
+
   networkCheck();
 
   // sampleTask();

@@ -7,6 +7,7 @@
 void networkState();
 void networkCMD();
 void networkCheck();
+void backgroundWIFI();
 
 class WiFiManager
 {

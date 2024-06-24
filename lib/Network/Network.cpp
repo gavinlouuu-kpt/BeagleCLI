@@ -173,6 +173,7 @@ void backgroundWIFI()
 
         if (WiFi.status() == WL_CONNECTED)
         {
+            // knownWIFI = true;
             Serial.println("\nConnected to " + bestSSID);
             Serial.println("IP address: " + WiFi.localIP().toString());
             configTime(gmtOffset_sec, daylightOffset_sec, "time.nist.gov", "hk.pool.ntp.org", "asia.pool.ntp.org");
@@ -187,26 +188,35 @@ void backgroundWIFI()
     else
     {
         Serial.println("No known networks found.");
+        // knownWIFI = false;
     }
 
     // Clean up after scanning
     WiFi.scanDelete();
 }
 
+// bool knownWIFI = false;
+
 void wifiCheckTask(void *pvParameters)
 {
     for (;;)
     {
-        if (WiFi.status() == WL_CONNECTED)
+        // check if wifiCredentials.json exists
+        if (SD.exists("/wifiCredentials.json"))
         {
-            ArduinoOTA.handle();
-            //   updateLocalTime(); // Update time every minute if background WIFI managed
-            //   fbKeepAlive();
+            if (WiFi.status() == WL_CONNECTED)
+            {
+                ArduinoOTA.handle();
+                //   updateLocalTime(); // Update time every minute if background WIFI managed
+                //   fbKeepAlive();
+            }
+            else
+            {
+                backgroundWIFI();
+                // should move backgroundWIFI to a separate function so it is not looped
+            }
         }
-        else
-        {
-            backgroundWIFI();
-        }
+
         vTaskDelay(pdMS_TO_TICKS(10000)); // Check every 10 seconds
     }
 }

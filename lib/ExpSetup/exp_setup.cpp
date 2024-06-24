@@ -21,7 +21,7 @@
 int heatingTime;
 std::vector<int> heaterSettings;
 std::unordered_map<int, std::vector<std::pair<unsigned long, uint32_t>>> UOM_sensorData;
-std::unordered_map<int, std::vector<std::pair<unsigned long, std::array<uint32_t, 4>>>> ADS_sensorData;
+std::unordered_map<int, std::vector<std::pair<unsigned long, std::array<uint8_t, 4>>>> ADS_sensorData;
 
 uint8_t ADSi2c = 0x48;
 int last_setup_tracker = -1;
@@ -520,7 +520,7 @@ void saveUOMData(std::unordered_map<int, std::vector<std::pair<unsigned long, ui
     UOM_sensorData.clear();
 }
 
-void saveADSData(std::unordered_map<int, std::vector<std::pair<unsigned long, std::array<uint32_t, 4>>>> &ADS_sensorData, int setup_tracker, int repeat_tracker, int channel_tracker, String exp_name)
+void saveADSData(std::unordered_map<int, std::vector<std::pair<unsigned long, std::array<uint8_t, 4>>>> &ADS_sensorData, int setup_tracker, int repeat_tracker, int channel_tracker, String exp_name)
 {
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo))
@@ -651,7 +651,7 @@ void ads_heaterSettings(std::vector<int> settings)
     heaterSettings = settings;
 }
 
-int UOM_sensorADS(std::unordered_map<int, std::vector<std::pair<unsigned long, std::array<uint32_t, 4>>>> &ADS_sensorData, std::vector<int> heaterSettings, int heatingTime)
+int UOM_sensorADS(std::unordered_map<int, std::vector<std::pair<unsigned long, std::array<uint8_t, 4>>>> &ADS_sensorData, std::vector<int> heaterSettings, int heatingTime)
 {
     if (!ads.begin(ADSi2c))
     {
@@ -663,17 +663,11 @@ int UOM_sensorADS(std::unordered_map<int, std::vector<std::pair<unsigned long, s
     {
         Serial.print("+");
         ledcWrite(PWM_Heater, setting);
-        // if (bme.performReading())
-        // {
-        delay(heatingTime);
-        unsigned long timestamp = millis() - startTime;
-        std::array<uint32_t, 4> ADSreadings = {ads.readADC_SingleEnded(0), ads.readADC_SingleEnded(1), ads.readADC_SingleEnded(2), ads.readADC_SingleEnded(3)};
+        // delay(heatingTime);
+        // unsigned long timestamp = millis() - startTime;
+        unsigned long timestamp = millis(); // relative timestamp has a resetting bug that needs to be fixed
+        std::array<uint8_t, 4> ADSreadings = {ads.readADC_SingleEnded(0), ads.readADC_SingleEnded(1), ads.readADC_SingleEnded(2), ads.readADC_SingleEnded(3)};
         ADS_sensorData[setting].push_back(std::make_pair(timestamp, ADSreadings));
-        // }
-        // else
-        // {
-        // Serial.println("Failed to perform reading.");
-        // }
     }
 
     return 0;
@@ -758,25 +752,27 @@ void ads_pwm_test()
         unsigned long time = millis();
         while (millis() - time < 5000)
         {
-            Serial.print("PWM Heater: ");
-            Serial.print(i);
-            Serial.print(",");
-            Serial.print("time: ");
-            Serial.print(millis() - time);
-            Serial.print(",");
-            Serial.print(" Channel 0: ");
-            Serial.print(ads.readADC_SingleEnded(0));
-            Serial.print(",");
-            Serial.print(" Channel 1: ");
-            Serial.print(ads.readADC_SingleEnded(1));
-            Serial.print(",");
-            Serial.print(" Channel 2: ");
-            Serial.print(ads.readADC_SingleEnded(2));
-            Serial.print(",");
-            Serial.print(" Channel 3: ");
+            Serial.print(">PWM_Heater:");
+            Serial.println(i);
+            // Serial.print(",");
+            Serial.print(">time:");
+            Serial.println(millis() - time);
+            // Serial.print(",");
+            Serial.print(">Channel_0:");
+            Serial.println(ads.readADC_SingleEnded(0));
+            // Serial.print(",");
+            Serial.print(">Channel_1:");
+            Serial.println(ads.readADC_SingleEnded(1));
+            // Serial.print(",");
+            Serial.print(">Channel_2:");
+            Serial.println(ads.readADC_SingleEnded(2));
+            // Serial.print(",");
+            Serial.print(">Channel_3:");
             Serial.println(ads.readADC_SingleEnded(3));
         }
     }
+    ledcWrite(PWM_V_CH, 0);
+    ledcWrite(PWM_H_CH, 0);
 }
 
 void readConfigCMD()

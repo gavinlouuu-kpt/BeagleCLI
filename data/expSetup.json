@@ -3,16 +3,25 @@
         "exp_name": "exp_abc",
         "exp_info": "abc",
         "duration(s)": 3,
-        "repeat": 5,
+        "repeat": 2,
+        "heating_time(ms)": 5,
+        "heater_settings": [
+            100,
+            110,
+            120,
+            130,
+            140,
+            150,
+            160,
+            170,
+            180,
+            190,
+            200
+        ],
         "channel": [
             0,
             1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7
+            2
         ]
     }
 }
