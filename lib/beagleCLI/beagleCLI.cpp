@@ -12,11 +12,7 @@
 #include <Wire.h>
 #include <Init.h>
 #include <pinConfig.h>
-#include <Hardware.h>
 #include <functional>
-#include <SensorDataFactory.h>
-#include <zsrelay.h>
-#include <exp_setup.h>
 
 std::map<String, std::function<void()>> commandMap;
 using CommandHandler = std::function<void(int)>;
@@ -65,20 +61,6 @@ void ESPinfo()
     Serial.print(flash_size);
     Serial.println(" bytes");
 }
-
-// String processCommand(const String& receivedCommand) {
-//     auto it = commandMap.find(receivedCommand);
-//     if (it != commandMap.end()) {
-//         it->second(); // execute the command
-//         Serial.println();
-//         Serial.println("Command executed");
-//         return "tc"; // task complete
-//     } else {
-//         Serial.println();
-//         Serial.println("Unknown command");
-//         return "uc"; // unknown command
-//     }
-// }
 
 String readSerialInput()
 {
@@ -244,11 +226,7 @@ bool deleteAllFilesInDirectory(const char *dirPath)
 
 void cmdSetup()
 {
-    hardwareCMD();
     networkCMD();
-    sensorCMD();
-    zsrelayCMD();
-    readConfigCMD();
     commandMap["deleteAll"] = []()
     { deleteAllFilesInLittleFS(); };
     commandMap["ls"] = []()
